@@ -2,7 +2,63 @@
 @section('titre', 'Planning des Séances — ' . $centre->nom)
 
 @section('content')
-{{-- Barre navigation date --}}
+
+{{-- ── FILTRES ────────────────────────────────────────────────────────────── --}}
+<div class="bg-white rounded-4 border p-3 mb-4">
+    <form method="GET" action="{{ route('seances.index', $centreId) }}" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-semibold mb-1" style="font-size:12px;">Salle</label>
+            <select name="salle_id" class="form-select form-select-sm rounded-3">
+                <option value="">Toutes les salles</option>
+                @foreach($salles as $s)
+                <option value="{{ $s->id }}" {{ $salleId == $s->id ? 'selected' : '' }}>{{ $s->nom }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold mb-1" style="font-size:12px;">Matière</label>
+            <select name="matiere_id" class="form-select form-select-sm rounded-3">
+                <option value="">Toutes les matières</option>
+                @foreach($matieres as $m)
+                <option value="{{ $m->id }}" {{ $matiereId == $m->id ? 'selected' : '' }}>{{ $m->code }} — {{ $m->nom }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-semibold mb-1" style="font-size:12px;">Professeur</label>
+            <select name="prof_id" class="form-select form-select-sm rounded-3">
+                <option value="">Tous</option>
+                @foreach($profs as $p)
+                <option value="{{ $p->id }}" {{ ($profId ?? '') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-semibold mb-1" style="font-size:12px;">Statut</label>
+            <select name="statut" class="form-select form-select-sm rounded-3">
+                <option value="">Tous</option>
+                <option value="planifiee"  {{ ($statut ?? '') === 'planifiee'  ? 'selected' : '' }}>Planifiée</option>
+                <option value="en_cours"   {{ ($statut ?? '') === 'en_cours'   ? 'selected' : '' }}>En cours</option>
+                <option value="terminee"   {{ ($statut ?? '') === 'terminee'   ? 'selected' : '' }}>Terminée</option>
+                <option value="annulee"    {{ ($statut ?? '') === 'annulee'    ? 'selected' : '' }}>Annulée</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-sm flex-fill text-white rounded-3" style="background:var(--marron);">
+                <i class="bi bi-funnel me-1"></i>Filtrer
+            </button>
+            @if($filtreActif)
+            <a href="{{ route('seances.index', ['centreId' => $centreId, 'date' => today()->toDateString()]) }}"
+               class="btn btn-sm rounded-3" style="border:1px solid #ddd;" title="Réinitialiser">
+                <i class="bi bi-x-lg"></i>
+            </a>
+            @endif
+        </div>
+    </form>
+</div>
+
+{{-- Barre navigation date (cachée si filtres actifs) --}}
+@if(!$filtreActif)
 <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     @php
         $datePrev = \Carbon\Carbon::parse($date)->subDay()->toDateString();
@@ -30,11 +86,27 @@
         </button>
     </div>
 </div>
+@else
+{{-- Mode filtre : bouton nouvelle séance flottant --}}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div style="font-size:13px;color:#888;">
+        <i class="bi bi-funnel me-1"></i>
+        {{ $seances->count() }} séance(s) trouvée(s) — 15 derniers jours + 60 jours à venir
+    </div>
+    <button class="btn text-white rounded-3" style="background:var(--fonce);"
+            data-bs-toggle="modal" data-bs-target="#modalSeance">
+        <i class="bi bi-plus-lg me-1"></i> Nouvelle séance
+    </button>
+</div>
+@endif
 
-{{-- Erreurs --}}
+{{-- Alertes --}}
+@if(session('succes'))
+<div class="alert alert-success rounded-3 mb-3"><i class="bi bi-check-circle me-2"></i>{{ session('succes') }}</div>
+@endif
 @if($errors->any())
 <div class="alert alert-danger rounded-3 mb-3">
-    @foreach($errors->all() as $e) <div><i class="bi bi-exclamation-circle me-1"></i>{{ $e }}</div> @endforeach
+    @foreach($errors->all() as $e)<div><i class="bi bi-exclamation-circle me-1"></i>{{ $e }}</div>@endforeach
 </div>
 @endif
 
@@ -48,13 +120,24 @@
 <div class="rounded-4 border p-4 mb-3" style="background:{{ $bg }};border-color:rgba(0,0,0,.08)!important;">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-            <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                @if($filtreActif)
+                <span style="font-size:12px;color:#888;font-weight:600;">
+                    {{ \Carbon\Carbon::parse($s->debut)->locale('fr')->isoFormat('ddd D MMM') }}
+                </span>
+                @endif
                 <span class="fw-bold" style="font-family:monospace;font-size:14px;">
                     {{ \Carbon\Carbon::parse($s->debut)->format('H:i') }} – {{ \Carbon\Carbon::parse($s->fin)->format('H:i') }}
                 </span>
+                @if($s->est_composition)
+                <span class="badge rounded-pill px-3" style="font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
+                    ✏ Composition
+                </span>
+                @else
                 <span class="badge rounded-pill px-3" style="font-size:11px;background:{{ ['HP'=>'#e3f2fd','TPE'=>'#f3e5f5'][$s->type]??'#eee' }};color:{{ ['HP'=>'#1565c0','TPE'=>'#6a1b9a'][$s->type]??'#333' }}">
                     {{ $s->type }}
                 </span>
+                @endif
                 <span class="badge rounded-pill px-3" style="font-size:11px;background:{{ $bg }};color:var(--fonce);border:1px solid rgba(0,0,0,.1)">
                     {{ $s->statut }}
                 </span>
@@ -116,12 +199,22 @@
         <form method="POST" action="{{ route('seances.pause', $s->id) }}">
             @csrf
             <div class="modal-body">
-                <label class="form-label fw-semibold" style="font-size:13px;">Durée (minutes)</label>
-                <input type="number" name="duree_minutes" class="form-control rounded-3" value="15" min="1" max="60" required>
+                <div class="rounded-3 p-3 mb-3" style="background:#fff8e1;border:1px solid #fde68a;font-size:12px;">
+                    <strong>Pause fixe de 30 min</strong><br>
+                    Autorisée uniquement entre <strong>10h00–11h00</strong> ou <strong>15h00–16h00</strong>.<br>
+                    Non disponible pour les séances du soir (≥ 17h30) et les Master.
+                </div>
+                <p style="font-size:13px;color:#555;">
+                    Confirmer la pause de <strong>30 minutes</strong> pour la séance
+                    <strong>{{ $s->matiere?->code }}</strong>
+                    ({{ \Carbon\Carbon::parse($s->debut)->format('H:i') }} – {{ \Carbon\Carbon::parse($s->fin)->format('H:i') }}) ?
+                </p>
             </div>
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Annuler</button>
-                <button type="submit" class="btn text-white rounded-3" style="background:var(--fonce);">Valider</button>
+                <button type="submit" class="btn text-white rounded-3" style="background:var(--fonce);">
+                    <i class="bi bi-pause-fill me-1"></i>Confirmer la pause
+                </button>
             </div>
         </form>
     </div></div>
@@ -183,14 +276,17 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Début *</label>
-                        <input type="datetime-local" name="debut" class="form-control rounded-3"
-                               value="{{ $date }}T08:00" required>
+                        <label class="form-label fw-semibold" style="font-size:13px;">Date et heure de début *</label>
+                        <input type="datetime-local" name="debut" id="seanceDebut" class="form-control rounded-3"
+                               value="{{ $date }}T07:30" required onchange="updateFinPreview()">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Fin *</label>
-                        <input type="datetime-local" name="fin" class="form-control rounded-3"
-                               value="{{ $date }}T10:00" required>
+                        <label class="form-label fw-semibold" style="font-size:13px;">Durée *</label>
+                        <select name="duree_heures" id="seanceDuree" class="form-select rounded-3" required onchange="updateFinPreview()">
+                            <option value="3">3 heures</option>
+                            <option value="4">4 heures</option>
+                        </select>
+                        <small class="text-muted" id="seanceFinPreview" style="font-size:11px;"></small>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" style="font-size:13px;">Options concernées * (cocher plusieurs = séance commune)</label>
@@ -216,4 +312,22 @@
         </form>
     </div></div>
 </div>
+
+@push('scripts')
+<script>
+function updateFinPreview() {
+    const debutVal = document.getElementById('seanceDebut')?.value;
+    const duree    = parseInt(document.getElementById('seanceDuree')?.value || 3);
+    const preview  = document.getElementById('seanceFinPreview');
+    if (!debutVal || !preview) return;
+
+    const debut = new Date(debutVal);
+    const fin   = new Date(debut.getTime() + duree * 3600000);
+    const fmt   = h => String(h).padStart(2, '0');
+    preview.textContent = `Fin prévue : ${fmt(fin.getHours())}h${fmt(fin.getMinutes())}`;
+}
+// Initialiser au chargement
+document.addEventListener('DOMContentLoaded', updateFinPreview);
+</script>
+@endpush
 @endsection

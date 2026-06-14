@@ -1,18 +1,13 @@
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
-
-class Filiere extends Model
-{
-    protected $table    = 'filieres';
-    protected $fillable = ['nom', 'code'];
-
+use Illuminate\Database\Eloquent\SoftDeletes;
+class Filiere extends Model {
+    use SoftDeletes;
+    protected $fillable = ['nom','code','archive'];
+    protected $casts = ['archive'=>'boolean'];
     public function filiereOptions() { return $this->hasMany(FiliereOption::class)->orderBy('nom'); }
     public function matieres()       { return $this->hasMany(Matiere::class); }
-
-    // Tous les niveaux de cette filière (via ses options)
-    public function niveaux()
-    {
-        return Niveau::whereHas('filiereOption', fn($q) => $q->where('filiere_id', $this->id));
-    }
+    public function scopeActives($q) { return $q->where('archive',false); }
+    public function canDelete(): bool { return $this->matieres()->withTrashed()->count() === 0; }
 }
