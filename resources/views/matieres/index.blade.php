@@ -3,13 +3,19 @@
 
 @push('styles')
 <style>
-.fil-header  { cursor:pointer; user-select:none; }
-.fil-header:hover  { filter:brightness(.95); }
-.opt-header  { cursor:pointer; user-select:none; transition:background .15s; }
+.fil-header, .opt-header, .niv-header { cursor:pointer; user-select:none; }
+.fil-header:hover  { filter:brightness(.93); }
 .opt-header:hover  { background:#ece2d6 !important; }
-.niv-header  { cursor:pointer; user-select:none; transition:background .15s; }
 .niv-header:hover  { background:#f0ece8 !important; }
-.chv { transition:transform .2s; display:inline-block; }
+
+/* Rotation chevron via aria-expanded géré par Bootstrap */
+[data-bs-toggle="collapse"] .chv {
+    display:inline-block;
+    transition:transform .25s ease;
+}
+[data-bs-toggle="collapse"][aria-expanded="false"] .chv {
+    transform:rotate(-90deg);
+}
 </style>
 @endpush
 
@@ -50,53 +56,62 @@ $hasMatieres = $filieres->contains(fn($f)=>$f->filiereOptions->contains(fn($o)=>
 @foreach($filieres as $filiere)
 @php $hasMat=$filiere->filiereOptions->contains(fn($o)=>$o->niveaux->contains(fn($n)=>$n->matieres->isNotEmpty())); @endphp
 @if($hasMat)
-<div class="bg-white rounded-4 border mb-4 overflow-hidden">
+<div class="bg-white rounded-4 border mb-4">
 
-    {{-- ── En-tête filière (cliquable) ────────────────────────────────── --}}
-    <div class="fil-header px-4 py-3 d-flex align-items-center justify-content-between"
+    {{-- ── En-tête filière ──────────────────────────────────────────── --}}
+    <div class="fil-header px-4 py-3 d-flex align-items-center justify-content-between rounded-top-4"
          style="background:var(--fonce);"
-         onclick="toggleFil({{ $filiere->id }})">
+         data-bs-toggle="collapse"
+         data-bs-target="#fil_body_{{ $filiere->id }}"
+         aria-expanded="true"
+         aria-controls="fil_body_{{ $filiere->id }}">
         <div class="d-flex align-items-center gap-3">
             <span class="badge rounded-2 px-3 py-2" style="background:var(--marron);font-family:monospace;font-size:13px;">{{ $filiere->code }}</span>
             <span style="font-weight:700;font-size:15px;color:#fff;">{{ $filiere->nom }}</span>
         </div>
-        <i class="bi bi-chevron-down chv text-white" id="chv_fil_{{ $filiere->id }}" style="font-size:13px;"></i>
+        <i class="bi bi-chevron-down chv text-white" style="font-size:13px;"></i>
     </div>
 
-    {{-- ── Corps filière (collapsible) ─────────────────────────────────── --}}
-    <div id="fil_body_{{ $filiere->id }}">
+    {{-- ── Corps filière ─────────────────────────────────────────────── --}}
+    <div class="collapse show" id="fil_body_{{ $filiere->id }}">
     @foreach($filiere->filiereOptions as $opt)
     @if($opt->niveaux->contains(fn($n)=>$n->matieres->isNotEmpty()))
 
-        {{-- ── En-tête option (cliquable) ──────────────────────────────── --}}
+        {{-- ── En-tête option ──────────────────────────────────────── --}}
         <div class="opt-header px-4 py-2 border-top d-flex align-items-center justify-content-between"
              style="background:#f4ede4;"
-             onclick="toggleOpt({{ $opt->id }})">
+             data-bs-toggle="collapse"
+             data-bs-target="#opt_body_{{ $opt->id }}"
+             aria-expanded="true"
+             aria-controls="opt_body_{{ $opt->id }}">
             <div class="d-flex align-items-center gap-2">
                 <span class="badge rounded-2 px-2 py-1" style="background:var(--marron);font-size:10px;font-family:monospace;">{{ $opt->code }}</span>
                 <span style="font-weight:600;font-size:13px;color:var(--fonce);">{{ $opt->nom }}</span>
             </div>
-            <i class="bi bi-chevron-down chv" id="chv_opt_{{ $opt->id }}" style="font-size:11px;color:var(--fonce);"></i>
+            <i class="bi bi-chevron-down chv" style="font-size:11px;color:var(--fonce);"></i>
         </div>
 
-        {{-- ── Corps option (collapsible) ───────────────────────────────── --}}
-        <div id="opt_body_{{ $opt->id }}">
+        {{-- ── Corps option ─────────────────────────────────────────── --}}
+        <div class="collapse show" id="opt_body_{{ $opt->id }}">
         @foreach($opt->niveaux as $niveau)
         @if($niveau->matieres->isNotEmpty())
 
-            {{-- ── En-tête niveau (cliquable) ──────────────────────────── --}}
+            {{-- ── En-tête niveau ───────────────────────────────────── --}}
             <div class="niv-header px-4 py-2 border-top d-flex align-items-center justify-content-between"
                  style="background:#faf7f4;"
-                 onclick="toggleNiv({{ $niveau->id }})">
+                 data-bs-toggle="collapse"
+                 data-bs-target="#niv_body_{{ $niveau->id }}"
+                 aria-expanded="true"
+                 aria-controls="niv_body_{{ $niveau->id }}">
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge rounded-pill px-3" style="background:var(--fonce);color:var(--beige);font-size:11px;">{{ $niveau->code }}</span>
                     <span style="font-size:13px;font-weight:600;color:var(--fonce);">{{ $niveau->libelle }}</span>
                 </div>
-                <i class="bi bi-chevron-down chv" id="chv_niv_{{ $niveau->id }}" style="font-size:11px;color:#aaa;"></i>
+                <i class="bi bi-chevron-down chv" style="font-size:11px;color:#aaa;"></i>
             </div>
 
-            {{-- ── Table matières (collapsible) ─────────────────────────── --}}
-            <div id="niv_body_{{ $niveau->id }}">
+            {{-- ── Table matières ────────────────────────────────────── --}}
+            <div class="collapse show" id="niv_body_{{ $niveau->id }}">
             <table class="table table-hover mb-0 border-top">
                 <thead style="background:var(--beige);"><tr style="font-size:12px;color:var(--fonce);">
                     <th class="px-4 py-2">Code</th><th>Matière</th><th>S</th><th>HP Init.</th><th>HP Restant</th><th>TPE Init.</th><th>TPE Dyn.</th><th>MHT</th>
@@ -140,31 +155,15 @@ $hasMatieres = $filieres->contains(fn($f)=>$f->filiereOptions->contains(fn($o)=>
 
 @push('scripts')
 <script>
-function toggleFil(id) { _toggle('fil_body_' + id, 'chv_fil_' + id); }
-function toggleOpt(id)  { _toggle('opt_body_' + id, 'chv_opt_' + id); }
-function toggleNiv(id)  { _toggle('niv_body_' + id, 'chv_niv_' + id); }
-
-function _toggle(bodyId, chvId) {
-    const body = document.getElementById(bodyId);
-    const chv  = document.getElementById(chvId);
-    if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    if (chv) chv.style.transform = open ? 'rotate(-90deg)' : '';
-}
-
 function toutReplier() {
     document.querySelectorAll('[id^="fil_body_"],[id^="opt_body_"],[id^="niv_body_"]').forEach(el => {
-        el.style.display = 'none';
+        bootstrap.Collapse.getOrCreateInstance(el, {toggle: false}).hide();
     });
-    document.querySelectorAll('.chv').forEach(c => c.style.transform = 'rotate(-90deg)');
 }
-
 function toutDeplier() {
     document.querySelectorAll('[id^="fil_body_"],[id^="opt_body_"],[id^="niv_body_"]').forEach(el => {
-        el.style.display = '';
+        bootstrap.Collapse.getOrCreateInstance(el, {toggle: false}).show();
     });
-    document.querySelectorAll('.chv').forEach(c => c.style.transform = '');
 }
 </script>
 @endpush

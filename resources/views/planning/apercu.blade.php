@@ -3,18 +3,27 @@
 
 @push('styles')
 <style>
-.filiere-block { border-radius:12px; overflow:hidden; margin-bottom:16px; border:1px solid rgba(0,0,0,.08); background:#fff; }
-.filiere-header { padding:10px 18px; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; }
+.filiere-block { border-radius:12px; margin-bottom:16px; border:1px solid rgba(0,0,0,.08); background:#fff; }
+.filiere-header { padding:10px 18px; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; border-radius:12px 12px 0 0; }
 .filiere-header:hover { filter:brightness(.97); }
 .niveau-header { padding:7px 18px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .mat-row { transition:background .15s; }
 .mat-row:hover { background:#f8f5f0 !important; }
 .mat-row.hidden-by-filter { display:none !important; }
-.filiere-block.all-hidden .filiere-body { display:none; }
 .filiere-block.collapsed .filiere-body { display:none; }
 .chevron-icon { transition:transform .2s; }
 .collapsed .chevron-icon { transform:rotate(-90deg); }
 .search-highlight { background:#fef9c3; border-radius:2px; }
+
+/* Chevrons Bootstrap collapse option/niveau */
+[data-bs-toggle="collapse"].opt-toggle .chv-opt,
+[data-bs-toggle="collapse"].niv-toggle .chv-niv {
+    display:inline-block; transition:transform .2s;
+}
+[data-bs-toggle="collapse"].opt-toggle[aria-expanded="false"] .chv-opt,
+[data-bs-toggle="collapse"].niv-toggle[aria-expanded="false"] .chv-niv {
+    transform:rotate(-90deg);
+}
 
 /* Barre filtre sticky */
 .filter-bar { position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid rgba(0,0,0,.08); padding:10px 0; margin-bottom:16px; }
@@ -150,42 +159,48 @@
         $parNiv  = $matsOption->groupBy('niveau_id');
     @endphp
 
-        {{-- Sous-en-tête option (cliquable) --}}
-        <div class="border-top d-flex align-items-center justify-content-between"
+        {{-- Sous-en-tête option (Bootstrap collapse) --}}
+        <div class="opt-toggle border-top d-flex align-items-center justify-content-between"
              style="background:#f0ebe0;padding:7px 18px;cursor:pointer;user-select:none;"
-             onclick="toggleOpt('{{ $optUid }}')">
+             data-bs-toggle="collapse"
+             data-bs-target="#opt_body_{{ $optUid }}"
+             aria-expanded="true"
+             aria-controls="opt_body_{{ $optUid }}">
             <div class="d-flex align-items-center gap-2">
                 <span class="badge rounded-2 px-2 py-1" style="background:var(--marron);font-size:10px;font-family:monospace;">
                     {{ $optObj?->code ?? '?' }}
                 </span>
                 <span style="font-size:12px;font-weight:600;color:var(--fonce);">{{ $optObj?->nom ?? 'Option inconnue' }}</span>
             </div>
-            <i class="bi bi-chevron-down" id="opt_chv_{{ $optUid }}" style="font-size:11px;transition:.2s;color:var(--fonce);"></i>
+            <i class="bi bi-chevron-down chv-opt" style="font-size:11px;color:var(--fonce);"></i>
         </div>
 
-        {{-- Corps option (collapsible) --}}
-        <div id="opt_body_{{ $optUid }}">
+        {{-- Corps option (Bootstrap collapse) --}}
+        <div class="collapse show" id="opt_body_{{ $optUid }}">
         @foreach($parNiv as $niveauId => $matsNiveau)
         @php
             $niveau = $matsNiveau->first()->niveau;
             $nivUid = $filiereId . '_' . $niveauId;
         @endphp
 
-            {{-- Sous-en-tête niveau (cliquable) --}}
-            <div class="niveau-header border-top d-flex align-items-center justify-content-between"
+            {{-- Sous-en-tête niveau (Bootstrap collapse) --}}
+            <div class="niv-toggle niveau-header border-top d-flex align-items-center justify-content-between"
                  style="background:#f5f0eb;cursor:pointer;"
-                 onclick="toggleNiv('{{ $nivUid }}')">
+                 data-bs-toggle="collapse"
+                 data-bs-target="#niv_body_{{ $nivUid }}"
+                 aria-expanded="true"
+                 aria-controls="niv_body_{{ $nivUid }}">
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge rounded-pill px-2" style="background:var(--fonce);color:var(--beige);font-size:10px;">
                         {{ $niveau?->code ?? '?' }}
                     </span>
                     <span style="color:var(--fonce);">{{ $niveau?->libelle ?? 'Niveau inconnu' }}</span>
                 </div>
-                <i class="bi bi-chevron-down" id="niv_chv_{{ $nivUid }}" style="font-size:11px;transition:.2s;color:#aaa;"></i>
+                <i class="bi bi-chevron-down chv-niv" style="font-size:11px;color:#aaa;"></i>
             </div>
 
-            {{-- Table matières (collapsible) --}}
-            <div id="niv_body_{{ $nivUid }}">
+            {{-- Table matières (Bootstrap collapse) --}}
+            <div class="collapse show" id="niv_body_{{ $nivUid }}">
             <table class="table table-sm mb-0" style="font-size:12px;">
                 <thead style="background:#f9f8f6;">
                     <tr style="color:#777;">
@@ -714,27 +729,19 @@ function applyFilters() {
         if (show) visible++;
     });
 
-    // Cacher/montrer les blocs filière
+    // Blocs filière : afficher si résultats, déplier
     document.querySelectorAll('.filiere-block').forEach(block => {
         const hasVisible = block.querySelectorAll('.mat-row:not(.hidden-by-filter)').length > 0;
         block.style.display = hasVisible ? '' : 'none';
         if (hasVisible) block.classList.remove('collapsed');
     });
 
-    // Cacher/montrer les corps option
-    document.querySelectorAll('[id^="opt_body_"]').forEach(el => {
+    // Corps option/niveau : afficher/masquer sans animation
+    document.querySelectorAll('[id^="opt_body_"],[id^="niv_body_"]').forEach(el => {
         const hasVis = el.querySelectorAll('.mat-row:not(.hidden-by-filter)').length > 0;
-        el.style.display = hasVis ? '' : 'none';
-        const chv = document.getElementById('opt_chv_' + el.id.replace('opt_body_', ''));
-        if (chv) chv.style.transform = hasVis ? '' : 'rotate(-90deg)';
-    });
-
-    // Cacher/montrer les corps niveau
-    document.querySelectorAll('[id^="niv_body_"]').forEach(el => {
-        const hasVis = el.querySelectorAll('.mat-row:not(.hidden-by-filter)').length > 0;
-        el.style.display = hasVis ? '' : 'none';
-        const chv = document.getElementById('niv_chv_' + el.id.replace('niv_body_', ''));
-        if (chv) chv.style.transform = hasVis ? '' : 'rotate(-90deg)';
+        el.classList.toggle('show', hasVis);
+        const toggle = document.querySelector('[data-bs-target="#' + el.id + '"]');
+        if (toggle) toggle.setAttribute('aria-expanded', hasVis ? 'true' : 'false');
     });
 
     const countEl = document.getElementById('flt_count');
@@ -742,38 +749,19 @@ function applyFilters() {
 }
 
 function toggleAll(expand) {
+    // Filières (mécanisme CSS classe)
     document.querySelectorAll('.filiere-block').forEach(b => {
         if (b.style.display !== 'none') b.classList.toggle('collapsed', !expand);
     });
+    // Options et niveaux (Bootstrap collapse API)
     document.querySelectorAll('[id^="opt_body_"],[id^="niv_body_"]').forEach(el => {
-        el.style.display = expand ? '' : 'none';
-    });
-    document.querySelectorAll('[id^="opt_chv_"],[id^="niv_chv_"]').forEach(c => {
-        c.style.transform = expand ? '' : 'rotate(-90deg)';
+        bootstrap.Collapse.getOrCreateInstance(el, {toggle: false})[expand ? 'show' : 'hide']();
     });
 }
 
 function toggleFiliere(id) {
     const block = document.getElementById('fb_' + id);
     if (block) block.classList.toggle('collapsed');
-}
-
-function toggleOpt(uid) {
-    const body = document.getElementById('opt_body_' + uid);
-    const chv  = document.getElementById('opt_chv_' + uid);
-    if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    if (chv) chv.style.transform = open ? 'rotate(-90deg)' : '';
-}
-
-function toggleNiv(uid) {
-    const body = document.getElementById('niv_body_' + uid);
-    const chv  = document.getElementById('niv_chv_' + uid);
-    if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    if (chv) chv.style.transform = open ? 'rotate(-90deg)' : '';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
