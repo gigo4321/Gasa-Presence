@@ -162,7 +162,7 @@
         </div>
 
         {{-- Actions --}}
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
             @if($s->statut === 'planifiee')
             <form method="POST" action="{{ route('seances.demarrer', $s->id) }}">
                 @csrf
@@ -184,6 +184,19 @@
                     <i class="bi bi-stop-fill"></i> Terminer
                 </button>
             </form>
+            @endif
+
+            @if($s->statut === 'terminee')
+                @if($s->cloture_validee_at)
+                <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;font-size:11px;">
+                    <i class="bi bi-check2-circle me-1"></i>Clôture validée — {{ $s->nb_presents_valide }} présent(s)
+                </span>
+                @else
+                <button class="btn btn-sm rounded-3" style="background:var(--fonce);color:#fff;font-size:12px;"
+                        data-bs-toggle="modal" data-bs-target="#clotureModal{{ $s->id }}">
+                    <i class="bi bi-journal-check me-1"></i> Valider clôture
+                </button>
+                @endif
             @endif
         </div>
     </div>
@@ -219,6 +232,108 @@
         </form>
     </div></div>
 </div>
+
+{{-- Modal clôture de séance --}}
+@if($s->statut === 'terminee' && !$s->cloture_validee_at)
+@php
+    $dureeMin = $s->debut->diffInMinutes($s->fin);
+    $dureeH   = intdiv((int)$dureeMin, 60);
+    $dureeRem = (int)$dureeMin % 60;
+@endphp
+<div class="modal fade" id="clotureModal{{ $s->id }}" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content rounded-4">
+        <div class="modal-header border-0">
+            <h6 class="modal-title fw-bold" style="color:var(--fonce)">
+                <i class="bi bi-journal-check me-2"></i>Clôture — {{ $s->matiere?->code }}
+                <span style="font-size:12px;font-weight:400;color:#aaa;">
+                    {{ \Carbon\Carbon::parse($s->debut)->format('d/m/Y') }}
+                </span>
+            </h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+
+            {{-- Durée calculée (lecture seule) --}}
+            <div class="p-3 rounded-3 mb-3" style="background:#f5f5f5;border:1px solid #e0e0e0;">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:13px;font-weight:600;color:var(--fonce);">Durée calculée par le système</span>
+                    <span style="font-size:18px;font-weight:700;color:var(--marron);">
+                        {{ $dureeH }}h{{ $dureeRem > 0 ? str_pad($dureeRem,2,'0',STR_PAD_LEFT).'min' : '' }}
+                    </span>
+                </div>
+                <small style="color:#888;font-size:11px;">
+                    <i class="bi bi-clock me-1"></i>
+                    {{ $s->debut->format('H:i') }} → {{ $s->fin->format('H:i') }}
+                    &nbsp;·&nbsp; Ce volume ne peut pas être modifié directement.
+                </small>
+            </div>
+
+            {{-- Contestation (accordion) --}}
+            <div class="accordion mb-3" id="contestAcc{{ $s->id }}">
+                <div class="accordion-item border rounded-3" style="overflow:hidden;">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed py-2" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#contestBody{{ $s->id }}"
+                                style="font-size:12px;background:#fffde7;">
+                            <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                            Je conteste cette durée — envoyer une réclamation
+                        </button>
+                    </h2>
+                    <div id="contestBody{{ $s->id }}" class="accordion-collapse collapse">
+                        <div class="accordion-body pt-2 pb-3" style="background:#fffde7;">
+                            <form method="POST" action="{{ route('seances.contester', $s->id) }}">
+                                @csrf
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold" style="font-size:12px;">Durée réelle estimée (en minutes) *</label>
+                                    <input type="number" name="duree_contestee_minutes"
+                                           class="form-control form-control-sm rounded-3"
+                                           min="1" placeholder="{{ $dureeMin }}" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold" style="font-size:12px;">Motif de la réclamation *</label>
+                                    <textarea name="motif" class="form-control form-control-sm rounded-3"
+                                              rows="2" required
+                                              placeholder="Ex : coupure de courant, retard de démarrage du système…"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-sm rounded-3"
+                                        style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:12px;">
+                                    <i class="bi bi-send me-1"></i>Envoyer la réclamation
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Validation des présences --}}
+            <form method="POST" action="{{ route('seances.cloturer', $s->id) }}">
+                @csrf
+                <label class="form-label fw-semibold" style="font-size:13px;color:var(--fonce);">
+                    Nombre d'étudiants présents à confirmer *
+                </label>
+                <div class="input-group mb-1">
+                    <input type="number" name="nb_presents"
+                           value="{{ $s->nb_presents_auto ?? 0 }}"
+                           class="form-control rounded-start-3" min="0" required>
+                    <span class="input-group-text rounded-end-3" style="font-size:12px;color:#888;">
+                        comptage auto : {{ $s->nb_presents_auto ?? 0 }}
+                    </span>
+                </div>
+                <small class="text-muted d-block mb-3" style="font-size:11px;">
+                    Vous pouvez ajuster si le comptage automatique ne correspond pas à la réalité.
+                </small>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light rounded-3 flex-fill" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn text-white rounded-3 flex-fill" style="background:var(--fonce);">
+                        <i class="bi bi-check2-circle me-1"></i>Valider la clôture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div></div>
+</div>
+@endif
+
 @empty
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
     <div style="font-size:40px;margin-bottom:12px;">📅</div>

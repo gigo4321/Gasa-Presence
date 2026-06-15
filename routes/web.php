@@ -1,6 +1,6 @@
 <?php
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\{DashboardController,EtudiantController,OptionController,ProfesseurController,SeanceController,ScanController,MatiereController,FiliereController,PresenceController,SalleController,PlanningController};
+use App\Http\Controllers\{DashboardController,EtudiantController,OptionController,ProfesseurController,SeanceController,ScanController,MatiereController,FiliereController,PresenceController,SalleController,EmploiDuTempsController};
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn() => redirect()->route('login'));
@@ -67,10 +67,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/equipements/{equipement}',                  [SalleController::class,'updateEquipement'])->name('equipements.update');
     Route::delete('/equipements/{equipement}',               [SalleController::class,'destroyEquipement'])->name('equipements.destroy');
 
-    // ── Planning (génération automatique) ───────────────────────────────────
-    Route::get('/centre/{centreId}/planning',             [PlanningController::class,'apercu'])->name('planning.apercu');
-    Route::post('/centre/{centreId}/planning/generer',              [PlanningController::class,'generer'])->name('planning.generer');
-    Route::post('/centre/{centreId}/planning/generer-mi-semestre', [PlanningController::class,'genererMiSemestre'])->name('planning.generer-mi-semestre');
+    // ── Emplois du temps (grille + import) ──────────────────────────────────
+    Route::get('/centre/{centreId}/emplois-du-temps',                   [EmploiDuTempsController::class,'index'])->name('emplois-du-temps.index');
+    Route::post('/centre/{centreId}/emplois-du-temps/importer',         [EmploiDuTempsController::class,'import'])->name('emplois-du-temps.import');
+    Route::delete('/centre/{centreId}/emplois-du-temps/{edt}',          [EmploiDuTempsController::class,'destroy'])->name('emplois-du-temps.destroy');
+    Route::get('/emplois-du-temps/modele',                              [EmploiDuTempsController::class,'modele'])->name('emplois-du-temps.modele');
 
     // ── Séances ─────────────────────────────────────────────────────────────
     Route::get('/centre/{centreId}/seances',              [SeanceController::class,'index'])->name('seances.index');
@@ -78,6 +79,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/seances/{seance}/demarrer',             [SeanceController::class,'demarrer'])->name('seances.demarrer');
     Route::post('/seances/{seance}/terminer',             [SeanceController::class,'terminer'])->name('seances.terminer');
     Route::post('/seances/{seance}/pause',                [SeanceController::class,'pause'])->name('seances.pause');
+    Route::post('/seances/{seance}/cloturer',             [SeanceController::class,'cloturer'])->name('seances.cloturer');
+    Route::post('/seances/{seance}/contester',            [SeanceController::class,'contester'])->name('seances.contester');
 
     // ── Scan ─────────────────────────────────────────────────────────────────
     Route::get('/centre/{centreId}/scan',                 [ScanController::class,'index'])->name('scan.index');

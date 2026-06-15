@@ -75,7 +75,7 @@
         <a href="{{ route('etudiants.index',$cid) }}" class="{{ request()->routeIs('etudiants.*')?'active':'' }}"><i class="bi bi-mortarboard"></i> Étudiants</a>
         <a href="{{ route('professeurs.index',$cid) }}" class="{{ request()->routeIs('professeurs.*')?'active':'' }}"><i class="bi bi-person-badge"></i> Professeurs</a>
         <a href="{{ route('seances.index',$cid) }}" class="{{ request()->routeIs('seances.*')?'active':'' }}"><i class="bi bi-calendar3"></i> Planning</a>
-        <a href="{{ route('planning.apercu',$cid) }}" class="{{ request()->routeIs('planning.*')?'active':'' }}"><i class="bi bi-magic"></i> Génération</a>
+        <a href="{{ route('emplois-du-temps.index',$cid) }}" class="{{ request()->routeIs('emplois-du-temps.*')?'active':'' }}"><i class="bi bi-table"></i> Grille EDT</a>
         <a href="{{ route('salles.index',$cid) }}" class="{{ request()->routeIs('salles.*')?'active':'' }}"><i class="bi bi-door-open"></i> Salles</a>
         <a href="{{ route('scan.index',$cid) }}" class="{{ request()->routeIs('scan.*')?'active':'' }}"><i class="bi bi-qr-code-scan"></i> Scan Accès</a>
         <a href="{{ route('matieres.index',$cid) }}" class="{{ request()->routeIs('matieres.*')?'active':'' }}"><i class="bi bi-book"></i> Matières</a>
@@ -89,7 +89,7 @@
         <a href="{{ route('etudiants.index',$cid) }}" class="{{ request()->routeIs('etudiants.*')?'active':'' }}"><i class="bi bi-mortarboard"></i> Étudiants</a>
         <a href="{{ route('professeurs.index',$cid) }}" class="{{ request()->routeIs('professeurs.*')?'active':'' }}"><i class="bi bi-person-badge"></i> Professeurs</a>
         <a href="{{ route('seances.index',$cid) }}" class="{{ request()->routeIs('seances.*')?'active':'' }}"><i class="bi bi-calendar3"></i> Planning</a>
-        <a href="{{ route('planning.apercu',$cid) }}" class="{{ request()->routeIs('planning.*')?'active':'' }}"><i class="bi bi-magic"></i> Génération</a>
+        <a href="{{ route('emplois-du-temps.index',$cid) }}" class="{{ request()->routeIs('emplois-du-temps.*')?'active':'' }}"><i class="bi bi-table"></i> Grille EDT</a>
         <a href="{{ route('salles.index',$cid) }}" class="{{ request()->routeIs('salles.*')?'active':'' }}"><i class="bi bi-door-open"></i> Salles</a>
         <a href="{{ route('scan.index',$cid) }}" class="{{ request()->routeIs('scan.*')?'active':'' }}"><i class="bi bi-qr-code-scan"></i> Scan Accès</a>
         <a href="{{ route('matieres.index',$cid) }}" class="{{ request()->routeIs('matieres.*')?'active':'' }}"><i class="bi bi-book"></i> Matières</a>

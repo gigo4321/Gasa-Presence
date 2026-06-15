@@ -6,7 +6,7 @@
 .fil-card { border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); margin-bottom:12px; }
 .fil-header { padding:10px 18px; cursor:pointer; user-select:none; }
 .fil-header:hover { filter:brightness(.95); }
-.fil-body.collapsed { display:none; }
+.fil-card.collapsed .fil-body { display:none; }
 .chevron { transition:transform .2s; }
 .fil-card.collapsed .chevron { transform:rotate(-90deg); }
 .mat-row-fil { transition:background .12s; }

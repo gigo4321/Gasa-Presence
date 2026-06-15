@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription};
+use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription, ContestationHoraire};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -118,6 +118,7 @@ class SeanceController extends Controller
         $date        = $request->get('date', today()->toDateString());
 
         $query = Seance::with(['matiere', 'salle', 'professeur', 'options'])
+            ->withCount(['presences as nb_presents_auto' => fn($q) => $q->where('statut', 'present')])
             ->whereHas('salle', fn($q) => $q->where('centre_id', $centreId));
 
         if ($filtreActif) {
@@ -318,5 +319,60 @@ class SeanceController extends Controller
         $fin = now()->addMinutes($DUREE);
         $seance->update(['heure_debut_pause' => now(), 'heure_fin_pause' => $fin]);
         return back()->with('succes', "Pause de {$DUREE} min déclarée — reprise à " . $fin->format('H:i') . '.');
+    }
+
+    // ── Clôture de séance : validation par le professeur ────────────────────
+    public function cloturer(Request $request, Seance $seance)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        // Seul le professeur de la séance ou l'admin peut valider la clôture.
+        // Le responsable de centre n'a pas ce droit : c'est le professeur qui atteste à l'administration.
+        if (!$user->estAdmin() && $seance->professeur_id !== $user->id) {
+            abort(403);
+        }
+
+        if ($seance->statut !== 'terminee') {
+            return back()->withErrors(['cloture' => 'La séance doit être terminée avant de valider la clôture.']);
+        }
+        if ($seance->cloture_validee_at) {
+            return back()->withErrors(['cloture' => 'Cette séance a déjà été clôturée.']);
+        }
+
+        $data = $request->validate(['nb_presents' => 'required|integer|min:0']);
+
+        $seance->update([
+            'nb_presents_valide'  => $data['nb_presents'],
+            'cloture_validee_at'  => now(),
+            'cloture_validee_par' => $user->id,
+        ]);
+
+        return back()->with('succes', 'Clôture validée — ' . $data['nb_presents'] . ' présent(s) confirmé(s).');
+    }
+
+    // ── Contestation horaire : réclamation envoyée à l'administration ────────
+    public function contester(Request $request, Seance $seance)
+    {
+        if ($seance->statut !== 'terminee') {
+            return back()->withErrors(['contestation' => 'La séance doit être terminée pour envoyer une réclamation.']);
+        }
+
+        if ($seance->contestations()->where('statut', 'en_attente')->exists()) {
+            return back()->withErrors(['contestation' => 'Une réclamation est déjà en attente pour cette séance.']);
+        }
+
+        $data = $request->validate([
+            'duree_contestee_minutes' => 'required|integer|min:1',
+            'motif'                   => 'required|string|max:1000',
+        ]);
+
+        $seance->contestations()->create([
+            'professeur_id'           => Auth::id(),
+            'duree_calculee_minutes'  => (int) $seance->debut->diffInMinutes($seance->fin),
+            'duree_contestee_minutes' => $data['duree_contestee_minutes'],
+            'motif'                   => $data['motif'],
+        ]);
+
+        return back()->with('succes', 'Réclamation envoyée. L\'administration va examiner votre demande.');
     }
 }
