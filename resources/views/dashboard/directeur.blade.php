@@ -19,11 +19,6 @@
             <div><div class="stat-value">{{ $stats['seances_aujourd_hui'] }}</div><div class="stat-label">Séances aujourd'hui</div></div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card" style="background:{{ $stats['total_interpellations'] > 0 ? '#ffebee' : '#e8f5e9' }};"><span class="stat-icon">⚠️</span>
-            <div><div class="stat-value">{{ $stats['total_interpellations'] }}</div><div class="stat-label">Interpellations</div></div>
-        </div>
-    </div>
 </div>
 
 <div class="bg-white rounded-4 border mb-5 overflow-hidden">
@@ -35,7 +30,7 @@
         <thead style="background:var(--beige);">
             <tr style="font-size:12px;color:var(--fonce);">
                 <th class="px-4 py-3">Centre</th><th>Ville</th><th>Étudiants</th>
-                <th>Séances</th><th>En cours</th><th>Alertes</th><th>Assiduité</th><th></th>
+                <th>Séances</th><th>En cours</th><th>Assiduité</th><th></th>
             </tr>
         </thead>
         <tbody>
@@ -49,11 +44,6 @@
                 @if($cs['en_cours'] > 0)
                 <span class="badge rounded-pill px-2" style="background:#e8f5e9;color:#2e7d32;font-size:11px;">{{ $cs['en_cours'] }}</span>
                 @else<span style="color:#aaa;font-size:12px;">—</span>@endif
-            </td>
-            <td>
-                @if($cs['interpellations'] > 0)
-                <span class="badge rounded-pill px-2" style="background:#ffebee;color:#c62828;font-size:11px;">{{ $cs['interpellations'] }}</span>
-                @else<span style="color:#4caf50;font-size:12px;">✓ OK</span>@endif
             </td>
             <td>
                 @php $taux = $cs['taux_assiduite']; @endphp

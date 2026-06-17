@@ -76,7 +76,7 @@ class ScanController extends Controller
                 'fin'          => $seance->fin->format('H:i'),
                 'matiere_code' => $seance->matiere->code,
                 'matiere_nom'  => $seance->matiere->nom,
-                'professeur'   => $seance->professeur->name,
+                'professeur'   => $seance->professeur?->name ?? 'Séance TPE (autonome)',
                 'pause_active' => $pauseActive,
                 'pause_fin'    => $pauseActive ? $seance->heure_fin_pause->format('H:i') : null,
                 'groupes'      => $seance->options->map(fn($o) => ['id' => $o->id, 'nom' => $o->nom]),
@@ -153,36 +153,60 @@ class ScanController extends Controller
             : $this->traiterEntree($inscription, $seance, $etudiant);
     }
 
-    // ── Accès staff : aucune restriction horaire ─────────────────────────────
+    // ── Accès staff ──────────────────────────────────────────────────────────
+    // Professeurs : accès uniquement s'ils ont une séance HP dans cette salle.
+    // Admins / responsables / secrétaires : accès libre (gestion du centre).
     private function traiterAccesStaff(User $user, Salle $salle, string $mode)
     {
         $nom = $user->name;
 
-        if ($mode === 'entree') {
-            // Logguer automatiquement le scan prof s'il a une séance dans cette salle
+        // Sortie : toujours autorisée pour tout le staff
+        if ($mode === 'sortie') {
+            return response()->json([
+                'autorise' => true,
+                'statut'   => 'sortie_ok',
+                'message'  => "Sortie enregistrée — {$nom}.",
+                'couleur'  => 'vert',
+            ]);
+        }
+
+        // Entrée professeur : séance HP requise dans cette salle
+        if ($user->estProfesseur()) {
             $seance = Seance::where('salle_id', $salle->id)
                 ->where('professeur_id', $user->id)
+                ->where('type', 'HP')
                 ->whereIn('statut', ['en_cours', 'planifiee'])
+                ->where('debut', '<=', now()->addHour())
                 ->where('fin', '>=', now())
                 ->orderBy('debut')
                 ->first();
 
-            if ($seance && !$seance->heure_scan_professeur) {
+            if (!$seance) {
+                return response()->json([
+                    'autorise' => false,
+                    'statut'   => 'aucun_cours',
+                    'message'  => "Accès refusé — {$nom} : aucun cours HP prévu dans cette salle.",
+                    'couleur'  => 'rouge',
+                ]);
+            }
+
+            if (!$seance->heure_scan_professeur) {
                 $seance->update(['heure_scan_professeur' => now(), 'statut' => 'en_cours']);
             }
 
             return response()->json([
                 'autorise' => true,
-                'statut'   => 'acces_staff',
-                'message'  => "Accès autorisé — {$nom} ({$user->role_libelle})",
+                'statut'   => 'entree_ok',
+                'message'  => "Accès autorisé — {$nom}",
                 'couleur'  => 'vert',
             ]);
         }
 
+        // Admins, responsables, secrétaires : accès libre
         return response()->json([
             'autorise' => true,
-            'statut'   => 'sortie_ok',
-            'message'  => "Sortie enregistrée — {$nom}.",
+            'statut'   => 'acces_staff',
+            'message'  => "Accès autorisé — {$nom} ({$user->role_libelle})",
             'couleur'  => 'vert',
         ]);
     }

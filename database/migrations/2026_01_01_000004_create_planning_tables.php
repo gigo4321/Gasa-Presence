@@ -20,7 +20,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('matiere_id')->constrained('matieres');
             $table->foreignId('salle_id')->constrained('salles');
-            $table->foreignId('professeur_id')->constrained('users');
+            $table->foreignId('professeur_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('annee_scolaire_id')->constrained('annees_scolaires');
             $table->dateTime('debut');
             $table->dateTime('fin');

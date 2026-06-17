@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->timestamps();
         });
 
+        // Ajout de la liaison dans la table séances
         Schema::table('seances', function (Blueprint $table) {
             $table->foreignId('emploi_du_temps_id')
                   ->nullable()
@@ -29,10 +30,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::table('seances', function (Blueprint $table) {
-            $table->dropForeign(['emploi_du_temps_id']);
-            $table->dropColumn('emploi_du_temps_id');
-        });
         Schema::dropIfExists('emplois_du_temps');
     }
 };

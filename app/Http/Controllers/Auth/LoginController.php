@@ -22,6 +22,7 @@ class LoginController extends Controller {
     }
     private function redirectSelonRole($user) {
         if ($user->estAdmin()) return redirect()->route('dashboard.directeur');
+        if ($user->estProfesseur()) return redirect()->route('seances.index', ['centreId' => $user->centre_id, 'prof_id' => $user->id]);
         return redirect()->route('dashboard.centre', $user->centre_id);
     }
 }

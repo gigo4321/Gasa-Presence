@@ -17,7 +17,8 @@
     <div class="slideshow"><figure></figure><figure></figure><figure></figure></div>
     <div class="w-full max-w-md p-8 space-y-6 rounded-2xl shadow-2xl border border-white/20" style="background:rgba(255,253,241,0.88);backdrop-filter:blur(12px);">
         <div class="text-center">
-            <span class="inline-block px-4 py-1 text-xs font-mono rounded-full text-white mb-3" style="background:#3E2723;">GASA-FORMATION ERP</span>
+            <img src="{{ asset('images/logo.png') }}" alt="Logo GASA" class="h-16 mx-auto mb-4 drop-shadow-md">
+            <span class="inline-block px-4 py-1 text-xs font-mono rounded-full text-white mb-2" style="background:#3E2723;">GASA-FORMATION ERP</span>
             <h1 class="text-2xl font-bold" style="color:#3E2723;">Espace Administratif</h1>
             <p class="mt-1 text-sm" style="color:#8D6E63;">Connectez-vous pour accéder à votre espace</p>
         </div>
@@ -50,11 +51,6 @@
                 Se connecter au portail
             </button>
         </form>
-        <div class="rounded-xl p-3 text-xs" style="background:rgba(141,110,99,.1);color:#3E2723;">
-            <strong class="block mb-1">Comptes de test :</strong>
-            directeur@gasa.bj / Gasa2026!<br>
-            responsable.gbegamey@gasa.bj / Gbegamey2026!
-        </div>
     </div>
 </body>
 </html>

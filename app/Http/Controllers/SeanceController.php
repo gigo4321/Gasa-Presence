@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription, ContestationHoraire};
+use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -30,17 +30,28 @@ class SeanceController extends Controller
         foreach ($overdue as $seance) {
             $seance->update(['statut' => 'terminee']);
 
-            // Vases communicants si prof n'a pas badgé (hors compositions)
-            if (!$seance->heure_scan_professeur && $seance->type === 'HP' && !$seance->est_composition) {
+            // TPE : clôture automatique, aucune validation professeur requise
+            if ($seance->type === 'TPE' && !$seance->cloture_validee_at) {
+                $seance->update(['cloture_validee_at' => now()]);
+            }
+
+            if ($seance->type === 'HP' && !$seance->est_composition) {
                 $h = (int) ceil($seance->duree_heures);
                 foreach ($seance->options as $opt) {
                     $q = MatiereCentreAnnee::firstOrCreate(
                         ['matiere_id' => $seance->matiere_id, 'centre_id' => $opt->centre_id, 'annee_scolaire_id' => $seance->annee_scolaire_id],
                         ['hp_restant' => $seance->matiere->hp_initial, 'tpe_dynamique' => $seance->matiere->tpe_initial]
                     );
-                    $q->appliquerVasesCommunicants($h);
+                    if ($seance->heure_scan_professeur) {
+                        $q->hp_restant = max(0, $q->hp_restant - $h);
+                        $q->save();
+                    } else {
+                        $q->appliquerVasesCommunicants($h);
+                    }
                 }
-                $this->planifierRattrapage($seance);
+                if (!$seance->heure_scan_professeur) {
+                    $this->planifierRattrapage($seance);
+                }
             }
 
             // Absents automatiques
@@ -164,7 +175,7 @@ class SeanceController extends Controller
         $data = $request->validate([
             'matiere_id'    => 'required|exists:matieres,id',
             'salle_id'      => 'required|exists:salles,id',
-            'professeur_id' => 'required|exists:users,id',
+            'professeur_id' => 'nullable|exists:users,id',
             'debut'         => 'required|date',
             'duree_heures'  => 'required|in:3,4',
             'type'          => 'required|in:HP,TPE',
@@ -177,25 +188,23 @@ class SeanceController extends Controller
 
         $annee = AnneeScolaire::courante();
 
-        // Règle HP avant TPE : les HP doivent être entièrement planifiés avant tout TPE
+        // HP requiert un professeur ; TPE n'en a pas (travail autonome des étudiants)
+        if ($data['type'] === 'HP' && empty($data['professeur_id'])) {
+            return back()->withErrors(['professeur_id' => 'Un professeur est requis pour une séance HP.'])->withInput();
+        }
+
+        // Règle HP avant TPE : hp_restant doit être 0 pour ce centre avant de créer un TPE
         if ($data['type'] === 'TPE') {
-            $matiere    = Matiere::findOrFail($data['matiere_id']);
-            $cid        = $salle->centre_id;
-            $hpFait     = Seance::where('matiere_id', $matiere->id)
+            $cid = $salle->centre_id;
+            $mca = MatiereCentreAnnee::where('matiere_id', $data['matiere_id'])
+                ->where('centre_id', $cid)
                 ->where('annee_scolaire_id', $annee?->id)
-                ->where('statut', 'terminee')->where('type', 'HP')->where('est_composition', false)
-                ->whereHas('salle', fn($q) => $q->where('centre_id', $cid))
-                ->get()->sum('duree_heures');
-            $hpPlanifie = Seance::where('matiere_id', $matiere->id)
-                ->where('annee_scolaire_id', $annee?->id)
-                ->whereIn('statut', ['planifiee', 'en_cours'])->where('type', 'HP')->where('est_composition', false)
-                ->whereHas('salle', fn($q) => $q->where('centre_id', $cid))
-                ->get()->sum('duree_heures');
-            $hpCouvert  = round($hpFait + $hpPlanifie, 1);
-            if ($hpCouvert < $matiere->hp_initial) {
+                ->first();
+            $hpRestant = $mca?->hp_restant ?? Matiere::findOrFail($data['matiere_id'])->hp_initial;
+            if ($hpRestant > 0) {
                 return back()->withErrors(['type' =>
-                    "HP incomplets : {$hpCouvert}h couvertes sur {$matiere->hp_initial}h. "
-                    ."Planifiez toutes les séances HP avant de créer des TPE."
+                    "HP incomplets : {$hpRestant}h encore dues. "
+                    ."Toutes les séances HP doivent être terminées avant de créer des TPE."
                 ])->withInput();
             }
         }
@@ -250,16 +259,27 @@ class SeanceController extends Controller
     {
         $seance->update(['statut' => 'terminee']);
 
-        if (!$seance->heure_scan_professeur && $seance->type === 'HP' && !$seance->est_composition) {
+        if ($seance->type === 'TPE' && !$seance->cloture_validee_at) {
+            $seance->update(['cloture_validee_at' => now()]);
+        }
+
+        if ($seance->type === 'HP' && !$seance->est_composition) {
             $h = (int) ceil($seance->duree_heures);
             foreach ($seance->options as $opt) {
                 $q = MatiereCentreAnnee::firstOrCreate(
                     ['matiere_id' => $seance->matiere_id, 'centre_id' => $opt->centre_id, 'annee_scolaire_id' => $seance->annee_scolaire_id],
                     ['hp_restant' => $seance->matiere->hp_initial, 'tpe_dynamique' => $seance->matiere->tpe_initial]
                 );
-                $q->appliquerVasesCommunicants($h);
+                if ($seance->heure_scan_professeur) {
+                    $q->hp_restant = max(0, $q->hp_restant - $h);
+                    $q->save();
+                } else {
+                    $q->appliquerVasesCommunicants($h);
+                }
             }
-            $this->planifierRattrapage($seance);
+            if (!$seance->heure_scan_professeur) {
+                $this->planifierRattrapage($seance);
+            }
         }
 
         foreach ($seance->options as $opt) {
@@ -275,49 +295,31 @@ class SeanceController extends Controller
 
     public function pause(Request $request, Seance $seance)
     {
-        // Pause fixe : 30 minutes
         $DUREE = 30;
 
-        // Pas de pause si séance non en cours
         if ($seance->statut !== 'en_cours') {
             return back()->withErrors(['pause' => 'La séance n\'est pas en cours.']);
         }
 
-        // Pause déjà active ?
+        // Une seule pause active à la fois
         if ($seance->heure_fin_pause && now()->lt($seance->heure_fin_pause)) {
             return back()->withErrors(['pause' => 'Une pause est déjà en cours jusqu\'à ' . $seance->heure_fin_pause->format('H:i') . '.']);
         }
 
-        $debutH = $seance->debut->hour * 60 + $seance->debut->minute;
-        $nowMin  = now()->hour * 60 + now()->minute;
-
-        // Soir (≥ 17h30) → pas de pause
-        if ($debutH >= 17 * 60 + 30) {
-            return back()->withErrors(['pause' => 'Pas de pause autorisée pour les séances du soir (≥ 17h30).']);
-        }
-
-        // Master (niveau contient M1, M2, Master) → pas de pause
-        $estMaster = $seance->options()->whereHas('niveau', fn($q) =>
-            $q->where('libelle', 'like', '%Master%')
-              ->orWhere('libelle', 'like', '%M1%')
-              ->orWhere('libelle', 'like', '%M2%')
-        )->exists();
-        if ($estMaster) {
-            return back()->withErrors(['pause' => 'Pas de pause autorisée pour les groupes Master.']);
-        }
-
-        // Fenêtre autorisée : 10h00–11h00 OU 15h00–16h00
-        $fenetresMatin   = [$nowMin >= 10 * 60 && $nowMin < 11 * 60];
-        $fenetresApm     = [$nowMin >= 15 * 60 && $nowMin < 16 * 60];
-        if (!$fenetresMatin[0] && !$fenetresApm[0]) {
+        // La pause doit être déclenchée dans la plage horaire de la séance
+        if (now()->lt($seance->debut) || now()->gte($seance->fin)) {
             return back()->withErrors(['pause' =>
-                'Pause non autorisée à ' . now()->format('H:i') .
-                '. Fenêtres autorisées : 10h00–11h00 ou 15h00–16h00.'
+                'La pause ne peut être déclenchée qu\'entre '
+                . $seance->debut->format('H:i') . ' et ' . $seance->fin->format('H:i') . '.'
             ]);
         }
 
         $fin = now()->addMinutes($DUREE);
-        $seance->update(['heure_debut_pause' => now(), 'heure_fin_pause' => $fin]);
+        $seance->update([
+            'heure_debut_pause'     => now(),
+            'heure_fin_pause'       => $fin,
+            'durees_pauses_minutes' => ($seance->durees_pauses_minutes ?? 0) + $DUREE,
+        ]);
         return back()->with('succes', "Pause de {$DUREE} min déclarée — reprise à " . $fin->format('H:i') . '.');
     }
 
@@ -350,29 +352,4 @@ class SeanceController extends Controller
         return back()->with('succes', 'Clôture validée — ' . $data['nb_presents'] . ' présent(s) confirmé(s).');
     }
 
-    // ── Contestation horaire : réclamation envoyée à l'administration ────────
-    public function contester(Request $request, Seance $seance)
-    {
-        if ($seance->statut !== 'terminee') {
-            return back()->withErrors(['contestation' => 'La séance doit être terminée pour envoyer une réclamation.']);
-        }
-
-        if ($seance->contestations()->where('statut', 'en_attente')->exists()) {
-            return back()->withErrors(['contestation' => 'Une réclamation est déjà en attente pour cette séance.']);
-        }
-
-        $data = $request->validate([
-            'duree_contestee_minutes' => 'required|integer|min:1',
-            'motif'                   => 'required|string|max:1000',
-        ]);
-
-        $seance->contestations()->create([
-            'professeur_id'           => Auth::id(),
-            'duree_calculee_minutes'  => (int) $seance->debut->diffInMinutes($seance->fin),
-            'duree_contestee_minutes' => $data['duree_contestee_minutes'],
-            'motif'                   => $data['motif'],
-        ]);
-
-        return back()->with('succes', 'Réclamation envoyée. L\'administration va examiner votre demande.');
-    }
 }

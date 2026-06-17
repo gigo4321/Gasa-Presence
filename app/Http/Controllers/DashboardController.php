@@ -8,14 +8,24 @@ class DashboardController extends Controller {
     public function directeur() {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        if (!$user->estAdmin()) return redirect()->route('dashboard.centre', $user->centre_id);
+
+        // 1. Redirection spécifique pour le Professeur vers ses séances
+        if ($user->estProfesseur()) {
+            return redirect()->route('seances.index', ['centreId' => $user->centre_id, 'prof_id' => $user->id]);
+        }
+
+        // 2. Redirection pour les Responsables et autres personnels vers le dashboard du centre
+        if (!$user->estAdmin()) {
+            return redirect()->route('dashboard.centre', $user->centre_id);
+        }
+
+        // 3. Logique pour le Directeur Général (Admin)
         $annee   = AnneeScolaire::courante();
         $centres = Centre::all();
         $stats   = [
             'nb_centres'            => $centres->count(),
             'total_etudiants'       => $annee ? Inscription::where('annee_scolaire_id',$annee->id)->where('statut','actif')->count() : 0,
             'seances_aujourd_hui'   => Seance::whereDate('debut',today())->count(),
-            'total_interpellations' => 0,
             'annee'                 => $annee,
             'par_filiere'           => [], // Initialisé pour éviter l'erreur
             'seances_recentes'      => Seance::with(['matiere', 'salle.centre'])->latest()->take(5)->get(),
@@ -26,14 +36,11 @@ class DashboardController extends Controller {
             $inscrits  = $annee ? Inscription::whereHas('option', fn($q)=>$q->where('centre_id',$c->id)->where('annee_scolaire_id',$annee->id))->where('statut','actif')->count() : 0;
             $seances   = Seance::whereHas('salle',fn($q)=>$q->where('centre_id',$c->id))->whereDate('debut',today())->count();
             $enCours   = Seance::whereHas('salle',fn($q)=>$q->where('centre_id',$c->id))->where('statut','en_cours')->count();
-            $interp    = 0;
-            $stats['total_interpellations'] += $interp;
             $centresStats[] = [
                 'centre' => $c,
-                'nb_etudiants' => $inscrits, // Corrigé pour correspondre à la vue
+                'nb_etudiants' => $inscrits,
                 'seances_aujourd_hui' => $seances,
                 'en_cours' => $enCours,
-                'interpellations' => $interp,
                 'taux_assiduite' => 100
             ];
         }
@@ -58,6 +65,29 @@ class DashboardController extends Controller {
 
         $seancesAujourdhui = Seance::whereHas('salle',fn($q)=>$q->where('centre_id',$centreId))->whereDate('debut',today())->with(['matiere','salle','professeur'])->orderBy('debut')->get();
         $seancesEnCours    = $seancesAujourdhui->where('statut','en_cours')->count();
-        return view('dashboard.centre', compact('centre','nbInscrits','seancesAujourdhui','seancesEnCours','centreId','annee', 'annees'));
+
+        $seancesSemaine = Seance::whereHas('salle', fn($q) => $q->where('centre_id', $centreId))
+            ->where('debut', '>', now()->endOfDay())
+            ->where('debut', '<=', now()->endOfWeek())
+            ->whereIn('statut', ['planifiee','en_cours'])
+            ->with(['matiere','salle','professeur'])
+            ->orderBy('debut')
+            ->take(8)
+            ->get();
+
+        $nbGroupes     = \App\Models\Option::where('centre_id', $centreId)
+            ->when($annee, fn($q) => $q->where('annee_scolaire_id', $annee->id))
+            ->count();
+        $nbProfesseurs = \App\Models\User::where('centre_id', $centreId)
+            ->where('role', 'ROLE_PROFESSEUR')
+            ->count();
+        $nbSeancesSemaine = Seance::whereHas('salle', fn($q) => $q->where('centre_id', $centreId))
+            ->whereBetween('debut', [now()->startOfWeek(), now()->endOfWeek()])
+            ->count();
+
+        return view('dashboard.centre', compact(
+            'centre','nbInscrits','seancesAujourdhui','seancesEnCours','centreId','annee','annees',
+            'seancesSemaine','nbGroupes','nbProfesseurs','nbSeancesSemaine'
+        ));
     }
 }

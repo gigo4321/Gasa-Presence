@@ -115,14 +115,14 @@
             {{-- Matière + type --}}
             <div class="d-flex align-items-center gap-2 mb-1">
                 <span class="badge rounded-2 px-2"
-                      style="font-size:10px;background:{{ $seance->type==='HP'?'#e3f2fd':'#f3e5f5' }};color:{{ $seance->type==='HP'?'#1565c0':'#6a1b9a' }};">
+                      style="font-size:10px;background:{{ $seance->type==='HP'?'#EBF0F5':'#EDE8F3' }};color:{{ $seance->type==='HP'?'#2D4A6B':'#3F2A52' }};">
                     {{ $seance->type }}
                 </span>
                 <span style="font-weight:600;font-size:14px;color:var(--fonce);">
                     {{ $seance->matiere?->nom }}
                 </span>
                 @if($seance->is_inter_centre)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#fff3e0;color:#e65100;">🌐 Inter-centres</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;">🌐 Inter-centres</span>
                 @endif
             </div>
             {{-- Infos --}}
@@ -143,12 +143,12 @@
 
         {{-- Taux de présence --}}
         <div class="text-center" style="min-width:80px;">
-            <div style="font-size:22px;font-weight:700;color:{{ $taux>=75?'#2e7d32':($taux>=50?'#e65100':'#c62828') }}">
+            <div style="font-size:22px;font-weight:700;color:{{ $taux>=75?'#3A5C38':($taux>=50?'#7A3D28':'#6B2737') }}">
                 {{ $taux }}%
             </div>
             <div style="font-size:11px;color:#aaa;">{{ $nbPresents }}/{{ $nbTotal }}</div>
             <div style="height:4px;background:#eee;border-radius:2px;margin-top:4px;width:80px;">
-                <div style="height:100%;width:{{ $taux }}%;background:{{ $taux>=75?'#4caf50':($taux>=50?'#ff9800':'#f44336') }};border-radius:2px;"></div>
+                <div style="height:100%;width:{{ $taux }}%;background:{{ $taux>=75?'#4D7A4A':($taux>=50?'#8B6914':'#6B2737') }};border-radius:2px;"></div>
             </div>
         </div>
 

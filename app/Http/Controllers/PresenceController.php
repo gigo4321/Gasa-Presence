@@ -42,27 +42,29 @@ class PresenceController extends Controller {
             'presences' => fn($q) => $q->with(['inscription.etudiant', 'sortiesTemporaires'])->orderBy('heure_entree'),
         ]);
 
-        // ── Stats professeur / matière pour cette année ──────────────────────
-        $profSeancesTerminees = Seance::where('professeur_id', $seance->professeur_id)
-            ->where('matiere_id', $seance->matiere_id)
-            ->where('statut', 'terminee')
-            ->where('annee_scolaire_id', $seance->annee_scolaire_id)
-            ->get();
+        // ── Stats HP professeur / matière (TPE n'a pas de professeur) ───────
+        $profSeancesTerminees = $seance->professeur_id
+            ? Seance::where('professeur_id', $seance->professeur_id)
+                ->where('matiere_id', $seance->matiere_id)
+                ->where('statut', 'terminee')
+                ->where('annee_scolaire_id', $seance->annee_scolaire_id)
+                ->get()
+            : collect();
 
         $profHpFait    = round($profSeancesTerminees->where('type', 'HP')->sum('duree_heures'), 1);
-        $profTpeFait   = round($profSeancesTerminees->where('type', 'TPE')->sum('duree_heures'), 1);
-        $profNbSeances = $profSeancesTerminees->count();
+        $profTpeFait   = 0; // Les TPE ne sont pas comptabilisés sur le professeur
+        $profNbSeances = $profSeancesTerminees->where('type', 'HP')->count();
 
         $hpInitial  = $seance->matiere->hp_initial ?? 0;
         $tpeInitial = $seance->matiere->tpe_initial ?? 0;
 
-        $profHpRestant  = max(0, round($hpInitial  - $profHpFait,  1));
-        $profTpeRestant = max(0, round($tpeInitial - $profTpeFait, 1));
+        $profHpRestant  = max(0, round($hpInitial - $profHpFait, 1));
+        $profTpeRestant = 0; // non pertinent : les TPE ne comptent pas pour le professeur
 
         // Durée de la séance actuelle incluse
-        $dureeActuelle   = round($seance->duree_heures, 1);
-        $estDerniereHP   = $seance->type === 'HP'  && ($profHpFait  + $dureeActuelle) >= $hpInitial  && $hpInitial  > 0;
-        $estDerniereTPE  = $seance->type === 'TPE' && ($profTpeFait + $dureeActuelle) >= $tpeInitial && $tpeInitial > 0;
+        $dureeActuelle = round($seance->duree_heures, 1);
+        $estDerniereHP  = $seance->type === 'HP' && ($profHpFait + $dureeActuelle) >= $hpInitial && $hpInitial > 0;
+        $estDerniereTPE = false; // TPE pas comptabilisé sur le professeur
 
         // Quota centre/matière/année (vases communicants)
         $centreId = $seance->salle->centre_id ?? null;
@@ -77,18 +79,21 @@ class PresenceController extends Controller {
         $nbInsuffisants = $seance->presences->where('statut', 'presence_insuffisante')->count();
         $totalInscrits  = $seance->options->sum(fn($o) => $o->inscriptions()->where('statut', 'actif')->count());
 
+        $dureeEffectiveMinutes = $seance->calculerDureeEffective();
+
         return view('presences.fiche', compact(
             'seance', 'nbPresents', 'nbAbsents', 'nbInsuffisants', 'totalInscrits',
             'profSeancesTerminees', 'profHpFait', 'profTpeFait', 'profNbSeances',
             'hpInitial', 'tpeInitial', 'profHpRestant', 'profTpeRestant',
-            'quota', 'estDerniereHP', 'estDerniereTPE', 'dureeActuelle'
+            'quota', 'estDerniereHP', 'estDerniereTPE', 'dureeActuelle',
+            'dureeEffectiveMinutes'
         ));
     }
 
     public function exportPDF(Seance $seance) {
         $user = Auth::user();
         if (!$user->estAdmin() && $seance->salle?->centre_id != $user->centre_id) abort(403);
-        $seance->load(['matiere.niveau.filiereOption.filiere','salle.centre','professeur','options.filiereOption','options.niveau','presences.inscription.etudiant','presences.sortiesTemporaires']);
+        $seance->load(['matiere.niveau.filiereOption.filiere','salle.centre','professeur','options.filiereOption','options.niveau','presences.inscription.etudiant','presences.inscription.option.niveau','presences.sortiesTemporaires']);
         $nbPresents    = $seance->presences->where('statut','present')->count();
         $nbAbsents     = $seance->presences->where('statut','absent')->count();
         $nbInsuffisants= $seance->presences->where('statut','presence_insuffisante')->count();

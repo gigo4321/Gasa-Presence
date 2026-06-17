@@ -24,6 +24,7 @@
                 @endforeach
             </select>
         </div>
+        @if(!auth()->user()->estProfesseur())
         <div class="col-md-2">
             <label class="form-label fw-semibold mb-1" style="font-size:12px;">Professeur</label>
             <select name="prof_id" class="form-select form-select-sm rounded-3">
@@ -33,6 +34,9 @@
                 @endforeach
             </select>
         </div>
+        @else
+        <input type="hidden" name="prof_id" value="{{ auth()->id() }}">
+        @endif
         <div class="col-md-2">
             <label class="form-label fw-semibold mb-1" style="font-size:12px;">Statut</label>
             <select name="statut" class="form-select form-select-sm rounded-3">
@@ -79,24 +83,28 @@
     <a href="{{ route('seances.index', ['centreId' => $centreId, 'date' => $dateNext]) }}"
        class="btn btn-sm text-white rounded-3" style="background:var(--marron);">Demain →</a>
 
+    @if(!auth()->user()->estProfesseur())
     <div class="ms-auto">
         <button class="btn text-white rounded-3 px-4" style="background:var(--fonce);"
                 data-bs-toggle="modal" data-bs-target="#modalSeance">
             <i class="bi bi-plus-lg me-1"></i> Nouvelle séance
         </button>
     </div>
+    @endif
 </div>
 @else
-{{-- Mode filtre : bouton nouvelle séance flottant --}}
+{{-- Mode filtre : compteur + bouton nouvelle séance (responsable uniquement) --}}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div style="font-size:13px;color:#888;">
         <i class="bi bi-funnel me-1"></i>
         {{ $seances->count() }} séance(s) trouvée(s) — 15 derniers jours + 60 jours à venir
     </div>
+    @if(!auth()->user()->estProfesseur())
     <button class="btn text-white rounded-3" style="background:var(--fonce);"
             data-bs-toggle="modal" data-bs-target="#modalSeance">
         <i class="bi bi-plus-lg me-1"></i> Nouvelle séance
     </button>
+    @endif
 </div>
 @endif
 
@@ -113,9 +121,14 @@
 {{-- Liste des séances --}}
 @forelse($seances as $s)
 @php
-    $bgMap = ['planifiee'=>'#f3e5f5','en_cours'=>'#e8f5e9','terminee'=>'#f5f5f5','annulee'=>'#ffebee'];
+    $bgMap = ['planifiee'=>'#EDE8F3','en_cours'=>'#EBF0EA','terminee'=>'#f5f5f5','annulee'=>'#F2EAEB'];
     $bg = $bgMap[$s->statut] ?? '#fff';
     $enPause = $s->heure_fin_pause && now()->lt($s->heure_fin_pause);
+    // Durée effective et pauses pour séances HP avec scan
+    $efMin  = ($s->type === 'HP' && $s->heure_scan_professeur) ? $s->calculerDureeEffective() : null;
+    $efH    = $efMin !== null ? intdiv($efMin, 60) : null;
+    $efRem  = $efMin !== null ? ($efMin % 60) : null;
+    $pauseMin = (int)($s->durees_pauses_minutes ?? 0);
 @endphp
 <div class="rounded-4 border p-4 mb-3" style="background:{{ $bg }};border-color:rgba(0,0,0,.08)!important;">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
@@ -130,11 +143,11 @@
                     {{ \Carbon\Carbon::parse($s->debut)->format('H:i') }} – {{ \Carbon\Carbon::parse($s->fin)->format('H:i') }}
                 </span>
                 @if($s->est_composition)
-                <span class="badge rounded-pill px-3" style="font-size:11px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
+                <span class="badge rounded-pill px-3" style="font-size:11px;background:#F0E7C0;color:#6B4E0A;border:1px solid #D8C898;">
                     ✏ Composition
                 </span>
                 @else
-                <span class="badge rounded-pill px-3" style="font-size:11px;background:{{ ['HP'=>'#e3f2fd','TPE'=>'#f3e5f5'][$s->type]??'#eee' }};color:{{ ['HP'=>'#1565c0','TPE'=>'#6a1b9a'][$s->type]??'#333' }}">
+                <span class="badge rounded-pill px-3" style="font-size:11px;background:{{ ['HP'=>'#EBF0F5','TPE'=>'#EDE8F3'][$s->type]??'#eee' }};color:{{ ['HP'=>'#2D4A6B','TPE'=>'#3F2A52'][$s->type]??'#333' }}">
                     {{ $s->type }}
                 </span>
                 @endif
@@ -142,21 +155,40 @@
                     {{ $s->statut }}
                 </span>
                 @if($s->is_inter_centre)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#fff3e0;color:#e65100;">🌐 Inter-centres</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;">🌐 Inter-centres</span>
                 @endif
                 @if($enPause)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#fff8e1;color:#f57f17;">⏸ Pause jusqu'à {{ \Carbon\Carbon::parse($s->heure_fin_pause)->format('H:i') }}</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F2E9D8;color:#8B6914;">⏸ Pause jusqu'à {{ \Carbon\Carbon::parse($s->heure_fin_pause)->format('H:i') }}</span>
                 @endif
             </div>
             <div class="fw-semibold mb-1" style="font-size:15px;color:var(--fonce)">{{ $s->matiere?->nom }}</div>
             <div style="font-size:13px;color:var(--marron)">
+                @if($s->type === 'HP')
                 <i class="bi bi-person me-1"></i>{{ $s->professeur?->name }}
+                @else
+                <i class="bi bi-people me-1"></i><em>Travaux autonomes</em>
+                @endif
                 &nbsp;·&nbsp;
                 <i class="bi bi-door-open me-1"></i>{{ $s->salle?->nom }} ({{ $s->salle?->capacite }} places)
             </div>
             @if($s->options->count())
             <div style="font-size:12px;color:#888;margin-top:4px;">
                 <i class="bi bi-people me-1"></i>{{ $s->options->pluck('nom')->join(', ') }}
+            </div>
+            @endif
+            {{-- Durée effective + pauses (HP avec scan) --}}
+            @if($efMin !== null && in_array($s->statut, ['en_cours','terminee']))
+            <div class="d-flex gap-3 mt-2" style="font-size:12px;">
+                <span style="color:#2D4A6B;">
+                    <i class="bi bi-stopwatch me-1"></i>Effectif :
+                    <strong>{{ $efH }}h{{ $efRem > 0 ? str_pad($efRem,2,'0',STR_PAD_LEFT).'min' : '' }}</strong>
+                </span>
+                @if($pauseMin > 0)
+                <span style="color:#8B6914;">
+                    <i class="bi bi-pause-circle me-1"></i>Pause :
+                    <strong>{{ $pauseMin }} min</strong>
+                </span>
+                @endif
             </div>
             @endif
         </div>
@@ -166,20 +198,20 @@
             @if($s->statut === 'planifiee')
             <form method="POST" action="{{ route('seances.demarrer', $s->id) }}">
                 @csrf
-                <button type="submit" class="btn btn-sm text-white rounded-3" style="background:#2e7d32;font-size:12px;">
+                <button type="submit" class="btn btn-sm text-white rounded-3" style="background:#3A5C38;font-size:12px;">
                     <i class="bi bi-play-fill"></i> Démarrer
                 </button>
             </form>
             @endif
 
             @if($s->statut === 'en_cours')
-            <button class="btn btn-sm rounded-3" style="background:#fff8e1;color:#f57f17;border:1px solid #f57f17;font-size:12px;"
+            <button class="btn btn-sm rounded-3" style="background:#F2E9D8;color:#8B6914;border:1px solid #8B6914;font-size:12px;"
                     data-bs-toggle="modal" data-bs-target="#pauseModal{{ $s->id }}">
                 <i class="bi bi-pause-fill"></i> Pause
             </button>
             <form method="POST" action="{{ route('seances.terminer', $s->id) }}">
                 @csrf
-                <button type="submit" class="btn btn-sm text-white rounded-3" style="background:#c62828;font-size:12px;"
+                <button type="submit" class="btn btn-sm text-white rounded-3" style="background:#6B2737;font-size:12px;"
                         onclick="return confirm('Clôturer cette séance ?')">
                     <i class="bi bi-stop-fill"></i> Terminer
                 </button>
@@ -188,7 +220,7 @@
 
             @if($s->statut === 'terminee')
                 @if($s->cloture_validee_at)
-                <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;font-size:11px;">
+                <span class="badge rounded-pill px-3 py-2" style="background:#EBF0EA;color:#3A5C38;border:1px solid #C0D0C0;font-size:11px;">
                     <i class="bi bi-check2-circle me-1"></i>Clôture validée — {{ $s->nb_presents_valide }} présent(s)
                 </span>
                 @else
@@ -197,6 +229,11 @@
                     <i class="bi bi-journal-check me-1"></i> Valider clôture
                 </button>
                 @endif
+                <a href="{{ route('presences.fiche', $s->id) }}"
+                   class="btn btn-sm rounded-3"
+                   style="background:#f5f5f5;color:var(--fonce);border:1px solid #ddd;font-size:12px;">
+                    <i class="bi bi-file-earmark-text me-1"></i> Fiche
+                </a>
             @endif
         </div>
     </div>
@@ -212,10 +249,10 @@
         <form method="POST" action="{{ route('seances.pause', $s->id) }}">
             @csrf
             <div class="modal-body">
-                <div class="rounded-3 p-3 mb-3" style="background:#fff8e1;border:1px solid #fde68a;font-size:12px;">
+                <div class="rounded-3 p-3 mb-3" style="background:#F2E9D8;border:1px solid #D8C898;font-size:12px;">
                     <strong>Pause fixe de 30 min</strong><br>
-                    Autorisée uniquement entre <strong>10h00–11h00</strong> ou <strong>15h00–16h00</strong>.<br>
-                    Non disponible pour les séances du soir (≥ 17h30) et les Master.
+                    Déclenchable à tout moment durant la plage horaire de la séance.<br>
+                    Le système enregistre automatiquement 30 min à partir du déclenchement.
                 </div>
                 <p style="font-size:13px;color:#555;">
                     Confirmer la pause de <strong>30 minutes</strong> pour la séance
@@ -236,9 +273,12 @@
 {{-- Modal clôture de séance --}}
 @if($s->statut === 'terminee' && !$s->cloture_validee_at)
 @php
-    $dureeMin = $s->debut->diffInMinutes($s->fin);
-    $dureeH   = intdiv((int)$dureeMin, 60);
-    $dureeRem = (int)$dureeMin % 60;
+    $clotEfMin  = ($s->type === 'HP' && $s->heure_scan_professeur)
+        ? max(0, (int)$s->heure_scan_professeur->diffInMinutes($s->fin) - ($s->durees_pauses_minutes ?? 0))
+        : (int)$s->debut->diffInMinutes($s->fin);
+    $clotEfH   = intdiv($clotEfMin, 60);
+    $clotEfRem = $clotEfMin % 60;
+    $clotPauseMin = (int)($s->durees_pauses_minutes ?? 0);
 @endphp
 <div class="modal fade" id="clotureModal{{ $s->id }}" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content rounded-4">
@@ -253,56 +293,25 @@
         </div>
         <div class="modal-body">
 
-            {{-- Durée calculée (lecture seule) --}}
-            <div class="p-3 rounded-3 mb-3" style="background:#f5f5f5;border:1px solid #e0e0e0;">
+            {{-- Durée effective (lecture seule) --}}
+            <div class="p-3 rounded-3 mb-3" style="background:#EBF0F5;border:1px solid #B5C5D8;">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span style="font-size:13px;font-weight:600;color:var(--fonce);">Durée calculée par le système</span>
-                    <span style="font-size:18px;font-weight:700;color:var(--marron);">
-                        {{ $dureeH }}h{{ $dureeRem > 0 ? str_pad($dureeRem,2,'0',STR_PAD_LEFT).'min' : '' }}
+                    <span style="font-size:13px;font-weight:600;color:#2D4A6B;">Durée effective</span>
+                    <span style="font-size:18px;font-weight:700;color:#2D4A6B;">
+                        {{ $clotEfH }}h{{ $clotEfRem > 0 ? str_pad($clotEfRem,2,'0',STR_PAD_LEFT).'min' : '' }}
                     </span>
                 </div>
-                <small style="color:#888;font-size:11px;">
+                <small style="color:#5A6E8A;font-size:11px;">
                     <i class="bi bi-clock me-1"></i>
-                    {{ $s->debut->format('H:i') }} → {{ $s->fin->format('H:i') }}
-                    &nbsp;·&nbsp; Ce volume ne peut pas être modifié directement.
+                    @if($s->heure_scan_professeur)
+                        Scan {{ $s->heure_scan_professeur->format('H:i') }} → {{ $s->fin->format('H:i') }}
+                        @if($clotPauseMin > 0)
+                            &nbsp;·&nbsp; Pause : {{ $clotPauseMin }} min déduite(s)
+                        @endif
+                    @else
+                        Plage planifiée {{ $s->debut->format('H:i') }} → {{ $s->fin->format('H:i') }}
+                    @endif
                 </small>
-            </div>
-
-            {{-- Contestation (accordion) --}}
-            <div class="accordion mb-3" id="contestAcc{{ $s->id }}">
-                <div class="accordion-item border rounded-3" style="overflow:hidden;">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed py-2" type="button"
-                                data-bs-toggle="collapse" data-bs-target="#contestBody{{ $s->id }}"
-                                style="font-size:12px;background:#fffde7;">
-                            <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
-                            Je conteste cette durée — envoyer une réclamation
-                        </button>
-                    </h2>
-                    <div id="contestBody{{ $s->id }}" class="accordion-collapse collapse">
-                        <div class="accordion-body pt-2 pb-3" style="background:#fffde7;">
-                            <form method="POST" action="{{ route('seances.contester', $s->id) }}">
-                                @csrf
-                                <div class="mb-2">
-                                    <label class="form-label fw-semibold" style="font-size:12px;">Durée réelle estimée (en minutes) *</label>
-                                    <input type="number" name="duree_contestee_minutes"
-                                           class="form-control form-control-sm rounded-3"
-                                           min="1" placeholder="{{ $dureeMin }}" required>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label fw-semibold" style="font-size:12px;">Motif de la réclamation *</label>
-                                    <textarea name="motif" class="form-control form-control-sm rounded-3"
-                                              rows="2" required
-                                              placeholder="Ex : coupure de courant, retard de démarrage du système…"></textarea>
-                                </div>
-                                <button type="submit" class="btn btn-sm rounded-3"
-                                        style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:12px;">
-                                    <i class="bi bi-send me-1"></i>Envoyer la réclamation
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {{-- Validation des présences --}}
@@ -337,15 +346,24 @@
 @empty
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
     <div style="font-size:40px;margin-bottom:12px;">📅</div>
-    <div style="font-size:14px;">Aucune séance planifiée pour ce jour.</div>
+    <div style="font-size:14px;">
+        @if(auth()->user()->estProfesseur())
+            Aucune séance prévue pour vous ce jour.
+        @else
+            Aucune séance planifiée pour ce jour.
+        @endif
+    </div>
+    @if(!auth()->user()->estProfesseur())
     <button class="btn mt-3 text-white rounded-3 px-4" style="background:var(--marron);"
             data-bs-toggle="modal" data-bs-target="#modalSeance">
         Créer la première séance
     </button>
+    @endif
 </div>
 @endforelse
 
-{{-- Modal création séance --}}
+{{-- Modal création séance (responsable / admin uniquement) --}}
+@if(!auth()->user()->estProfesseur())
 <div class="modal fade" id="modalSeance" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content rounded-4">
         <div class="modal-header border-0">
@@ -367,9 +385,10 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" style="font-size:13px;">Type *</label>
-                        <select name="type" class="form-select rounded-3" required>
+                        <select name="type" id="seanceType" class="form-select rounded-3" required
+                                onchange="toggleProfesseurField()">
                             <option value="HP">HP — Cours Professeur</option>
-                            <option value="TPE">TPE — Travaux Personnels</option>
+                            <option value="TPE">TPE — Travaux Personnels (sans professeur)</option>
                         </select>
                     </div>
                     <div class="col-md-6">
@@ -381,9 +400,9 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Professeur *</label>
-                        <select name="professeur_id" class="form-select rounded-3" required>
+                    <div class="col-md-6" id="professeurRow">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Professeur <span id="profRequired">*</span></label>
+                        <select name="professeur_id" id="professeurSelect" class="form-select rounded-3" required>
                             <option value="">— Sélectionner —</option>
                             @foreach($profs as $p)
                             <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -427,6 +446,7 @@
         </form>
     </div></div>
 </div>
+@endif {{-- fin !estProfesseur --}}
 
 @push('scripts')
 <script>
@@ -435,14 +455,34 @@ function updateFinPreview() {
     const duree    = parseInt(document.getElementById('seanceDuree')?.value || 3);
     const preview  = document.getElementById('seanceFinPreview');
     if (!debutVal || !preview) return;
-
     const debut = new Date(debutVal);
     const fin   = new Date(debut.getTime() + duree * 3600000);
     const fmt   = h => String(h).padStart(2, '0');
     preview.textContent = `Fin prévue : ${fmt(fin.getHours())}h${fmt(fin.getMinutes())}`;
 }
-// Initialiser au chargement
-document.addEventListener('DOMContentLoaded', updateFinPreview);
+
+function toggleProfesseurField() {
+    const type  = document.getElementById('seanceType')?.value;
+    const row   = document.getElementById('professeurRow');
+    const sel   = document.getElementById('professeurSelect');
+    const label = document.getElementById('profRequired');
+    if (!row || !sel) return;
+    if (type === 'TPE') {
+        row.style.display = 'none';
+        sel.removeAttribute('required');
+        sel.value = '';
+        if (label) label.style.display = 'none';
+    } else {
+        row.style.display = '';
+        sel.setAttribute('required', 'required');
+        if (label) label.style.display = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    updateFinPreview();
+    toggleProfesseurField();
+});
 </script>
 @endpush
 @endsection

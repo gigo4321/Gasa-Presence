@@ -80,7 +80,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/seances/{seance}/terminer',             [SeanceController::class,'terminer'])->name('seances.terminer');
     Route::post('/seances/{seance}/pause',                [SeanceController::class,'pause'])->name('seances.pause');
     Route::post('/seances/{seance}/cloturer',             [SeanceController::class,'cloturer'])->name('seances.cloturer');
-    Route::post('/seances/{seance}/contester',            [SeanceController::class,'contester'])->name('seances.contester');
 
     // ── Scan ─────────────────────────────────────────────────────────────────
     Route::get('/centre/{centreId}/scan',                 [ScanController::class,'index'])->name('scan.index');

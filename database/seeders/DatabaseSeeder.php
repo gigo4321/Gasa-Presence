@@ -1,292 +1,784 @@
 <?php
+
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\{DB, Hash};
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // ══════════════════════════════════════════════════════════════════
-        // ANNÉES SCOLAIRES
-        // ══════════════════════════════════════════════════════════════════
-        DB::table('annees_scolaires')->insert([
-            ['libelle'=>'2023-2024','date_debut'=>'2023-09-01','date_fin'=>'2024-07-31','active'=>false,'created_at'=>now(),'updated_at'=>now()],
-            ['libelle'=>'2024-2025','date_debut'=>'2024-09-01','date_fin'=>'2025-07-31','active'=>false,'created_at'=>now(),'updated_at'=>now()],
-            ['libelle'=>'2025-2026','date_debut'=>'2025-09-01','date_fin'=>'2026-07-31','active'=>true,'created_at'=>now(),'updated_at'=>now()],
-        ]);
-        $a2526 = DB::table('annees_scolaires')->where('libelle','2025-2026')->value('id');
+        DB::transaction(function () {
+            $now = Carbon::now();
 
-        // ══════════════════════════════════════════════════════════════════
-        // CENTRES
-        // ══════════════════════════════════════════════════════════════════
-        DB::table('centres')->insert([
-            ['nom'=>'Centre de Gbégamey','ville'=>'Cotonou','created_at'=>now(),'updated_at'=>now()],
-            ['nom'=>"Centre d'Akpakpa",'ville'=>'Cotonou','created_at'=>now(),'updated_at'=>now()],
-            ['nom'=>'Centre de Porto-Novo','ville'=>'Porto-Novo','created_at'=>now(),'updated_at'=>now()],
-            ['nom'=>'Centre de Calavi','ville'=>'Calavi','created_at'=>now(),'updated_at'=>now()],
-        ]);
-        $cGbe = DB::table('centres')->where('nom','Centre de Gbégamey')->value('id');
-        $cAkp = DB::table('centres')->where('nom',"Centre d'Akpakpa")->value('id');
-        $cPnv = DB::table('centres')->where('nom','Centre de Porto-Novo')->value('id');
-        $cCal = DB::table('centres')->where('nom','Centre de Calavi')->value('id');
+            // === ANNEES_SCOLAIRES ===
+            $a2526 = DB::table('annees_scolaires')->insertGetId([
+                'libelle'    => '2025-2026',
+                'date_debut' => '2025-09-01',
+                'date_fin'   => '2026-07-31',
+                'active'     => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // FILIÈRES, OPTIONS PÉDAGOGIQUES & NIVEAUX
-        // ══════════════════════════════════════════════════════════════════
-        DB::table('filieres')->insert([
-            ['nom'=>'Génie Électrique','code'=>'GE','archive'=>false,'created_at'=>now(),'updated_at'=>now()],
-        ]);
-        $fGE = DB::table('filieres')->where('code','GE')->value('id');
+            // === CENTRES ===
+            $cGbe = DB::table('centres')->insertGetId([
+                'nom'        => 'Gbégamey',
+                'ville'      => 'Cotonou',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $cAkp = DB::table('centres')->insertGetId([
+                'nom'        => 'Akpakpa',
+                'ville'      => 'Cotonou',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
 
-        $options_ped = [
-            ['nom'=>'Système Informatique',              'code'=>'SI',      'filiere_id'=>$fGE],
-            ['nom'=>'Système Informatique et Logiciel',  'code'=>'SIL',     'filiere_id'=>$fGE],
-            ['nom'=>'Réseaux et Ingénierie Télécom',     'code'=>'RIT',     'filiere_id'=>$fGE],
-            ['nom'=>'Électricité Réseau',                'code'=>'ER',      'filiere_id'=>$fGE],
-            ['nom'=>'Biotechnologie',                    'code'=>'BIOTECH', 'filiere_id'=>$fGE],
-            ['nom'=>'Sciences de Gestion',               'code'=>'SG',      'filiere_id'=>$fGE],
-        ];
-        foreach ($options_ped as $op) {
-            DB::table('filiere_options')->insert(array_merge($op, ['archive'=>false,'created_at'=>now(),'updated_at'=>now()]));
-        }
-        $foSI  = DB::table('filiere_options')->where('code','SI')->value('id');
-        $foSIL = DB::table('filiere_options')->where('code','SIL')->value('id');
-        $foRIT = DB::table('filiere_options')->where('code','RIT')->value('id');
-        $foER  = DB::table('filiere_options')->where('code','ER')->value('id');
-        $foBIO = DB::table('filiere_options')->where('code','BIOTECH')->value('id');
-        $foSG  = DB::table('filiere_options')->where('code','SG')->value('id');
+            // === FILIERES ===
+            $fGE = DB::table('filieres')->insertGetId([
+                'nom'        => 'Génie Électrique',
+                'code'       => 'GE',
+                'archive'    => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
 
-        $niveaux_data = [
-            [$foSI,  'GE1','L1',1], [$foSIL,'GE1','L1',1], [$foRIT,'GE1','L1',1],
-            [$foER,  'GE1','L1',1], [$foBIO,'GE1','L1',1], [$foSG, 'GE1','L1',1],
-        ];
-        foreach ($niveaux_data as [$fo,$lib,$code,$ordre]) {
-            DB::table('niveaux')->insert(['libelle'=>$lib,'code'=>$code,'ordre'=>$ordre,'filiere_option_id'=>$fo,'archive'=>false,'created_at'=>now(),'updated_at'=>now()]);
-        }
-        $nSI  = DB::table('niveaux')->where('filiere_option_id',$foSI)->value('id');
-        $nSIL = DB::table('niveaux')->where('filiere_option_id',$foSIL)->value('id');
-        $nRIT = DB::table('niveaux')->where('filiere_option_id',$foRIT)->value('id');
-        $nER  = DB::table('niveaux')->where('filiere_option_id',$foER)->value('id');
-        $nBIO = DB::table('niveaux')->where('filiere_option_id',$foBIO)->value('id');
-        $nSG  = DB::table('niveaux')->where('filiere_option_id',$foSG)->value('id');
+            // === FILIERE_OPTIONS ===
+            $foSIL = DB::table('filiere_options')->insertGetId([
+                'nom'        => 'Système Informatique et Logiciel',
+                'code'       => 'SIL',
+                'filiere_id' => $fGE,
+                'archive'    => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $foGEER = DB::table('filiere_options')->insertGetId([
+                'nom'        => 'Génie Électrique Énergie Renouvelable',
+                'code'       => 'GEER',
+                'filiere_id' => $fGE,
+                'archive'    => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $foRIT = DB::table('filiere_options')->insertGetId([
+                'nom'        => 'Réseaux et Ingénierie Télécom',
+                'code'       => 'RIT',
+                'filiere_id' => $fGE,
+                'archive'    => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // MATIÈRES  (extraites des emplois du temps réels GASA/GBÉGAMEY)
-        // ══════════════════════════════════════════════════════════════════
-        $matieres = [
-            // ── Communes GE1 – Semestre 1 (portées par SI)
-            ['INFO-FOND',  'Informatique Fondamentale',              1, 30, 15, $fGE, $nSI],
-            ['SYS-NUM',    'Systèmes de Numération',                 1, 20, 10, $fGE, $nSI],
-            ['REV-MATHS',  'Révisions Mathématiques',                1, 20,  0, $fGE, $nSI],
-            ['TEEO',       'Théorie des Éléments Électroniques',     1, 20, 10, $fGE, $nSI],
-            ['ATO',        'Analyse et Traitement des Oscillations', 1, 15,  5, $fGE, $nSI],
-            ['ELN01',      'Électronique 01-02',                     1, 30, 10, $fGE, $nSI],
-            ['ANGLAIS',    'Anglais',                                1, 15,  5, $fGE, $nSI],
-            ['ELC',        'Électricité',                            1, 20,  5, $fGE, $nSI],
-            ['TP-COMP',    'TP Composants',                          1, 20,  0, $fGE, $nSI],
-            // ── Communes GE1 – Semestre 2 (portées par SI)
-            ['ANALYSE',    'Analyse Mathématique',                   2, 30, 10, $fGE, $nSI],
-            ['STAT',       'Statistiques & Probabilités',            2, 20, 10, $fGE, $nSI],
-            ['ELN03',      'Électronique 03',                        2, 25, 10, $fGE, $nSI],
-            ['ALP',        'Algorithmique et Programmation',         2, 30, 15, $fGE, $nSI],
-            ['PHYSIQUE',   'Physique',                               2, 30, 10, $fGE, $nSI],
-            ['MECA-GEN',   'Mécanique Générale',                     2, 20,  5, $fGE, $nSI],
-            ['ELEC-BAT',   'Électricité Bâtiment',                   2, 20,  5, $fGE, $nSI],
-            ['TECHNOS1',   'Technologies et Schémas 1',              2, 20,  5, $fGE, $nSI],
-            ['ELA01',      'Électronique Analogique 01',             2, 25, 10, $fGE, $nSI],
-            ['AUTO',       'Automatique',                            2, 20,  5, $fGE, $nSI],
-            ['TP-RM',      'TP Réseaux et Mesures',                  2, 20,  0, $fGE, $nSI],
-            ['LANG-C',     'Langage C',                              2, 25, 15, $fGE, $nSI],
-            ['DT',         'Dessin Technique',                       2, 15,  5, $fGE, $nSI],
-            ['TP-PY',      'TP Python',                              2, 15,  0, $fGE, $nSI],
-            // ── Spécifiques SIL
-            ['ENV-LOG1',   'Environnement Logiciel 1',               1, 20,  5, $fGE, $nSIL],
-            ['GRAPHES',    'Théorie des Graphes',                    1, 20, 10, $fGE, $nSIL],
-            ['MATHS-F',    'Mathématiques Fines',                    1, 20,  5, $fGE, $nSIL],
-            ['PROG-WEB1',  'Programmation Web 1',                    2, 25, 10, $fGE, $nSIL],
-            ['BDD',        'Bases de Données et SGBDR',              2, 25, 15, $fGE, $nSIL],
-            ['MERISE1',    'MERISE 1',                               2, 20, 10, $fGE, $nSIL],
-            ['COMPTA',     'Comptabilité Générale',                  2, 20,  5, $fGE, $nSIL],
-            // ── Spécifiques RIT
-            ['COMMU1',     'Commutation 1',                          2, 25, 10, $fGE, $nRIT],
-            ['TRANS1',     'Transmission 1',                         2, 25, 10, $fGE, $nRIT],
-            // ── Spécifiques ER
-            ['INTRO-ER',   'Introduction aux Énergies Renouvelables',2, 15,  5, $fGE, $nER],
-            ['CHIMIE',     'Chimie et Thermochimie',                 2, 20,  5, $fGE, $nER],
-            // ── Spécifiques BIOTECH
-            ['BIO-CELL',   'Biologie Cellulaire',                    1, 25, 10, $fGE, $nBIO],
-            ['BIOCHIMIE',  'Biochimie',                              2, 25, 10, $fGE, $nBIO],
-            // ── Spécifiques SG
-            ['COMPTA-GEN', 'Comptabilité Générale SG',               1, 25,  5, $fGE, $nSG],
-            ['DROIT',      'Droit des Affaires',                     2, 20,  5, $fGE, $nSG],
-        ];
-        foreach ($matieres as [$code,$nom,$sem,$hp,$tpe,$fid,$nid]) {
-            DB::table('matieres')->insert(['nom'=>$nom,'code'=>$code,'semestre'=>$sem,'hp_initial'=>$hp,'tpe_initial'=>$tpe,'filiere_id'=>$fid,'niveau_id'=>$nid,'archive'=>false,'created_at'=>now(),'updated_at'=>now()]);
-        }
+            // === NIVEAUX (3 par filiere_option = 9 total) ===
+            $nSIL_L1  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 1', 'code' => 'L1', 'ordre' => 1, 'filiere_option_id' => $foSIL,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nSIL_L2  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 2', 'code' => 'L2', 'ordre' => 2, 'filiere_option_id' => $foSIL,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nSIL_L3  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 3', 'code' => 'L3', 'ordre' => 3, 'filiere_option_id' => $foSIL,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nGEER_L1 = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 1', 'code' => 'L1', 'ordre' => 1, 'filiere_option_id' => $foGEER, 'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nGEER_L2 = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 2', 'code' => 'L2', 'ordre' => 2, 'filiere_option_id' => $foGEER, 'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nGEER_L3 = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 3', 'code' => 'L3', 'ordre' => 3, 'filiere_option_id' => $foGEER, 'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nRIT_L1  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 1', 'code' => 'L1', 'ordre' => 1, 'filiere_option_id' => $foRIT,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nRIT_L2  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 2', 'code' => 'L2', 'ordre' => 2, 'filiere_option_id' => $foRIT,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
+            $nRIT_L3  = DB::table('niveaux')->insertGetId(['libelle' => 'Licence 3', 'code' => 'L3', 'ordre' => 3, 'filiere_option_id' => $foRIT,  'archive' => false, 'created_at' => $now, 'updated_at' => $now]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // UTILISATEURS — Directeur + Responsables de centre
-        // ══════════════════════════════════════════════════════════════════
-        DB::table('users')->insert([
-            ['name'=>'AYI Théophane',  'email'=>'directeur@gasa.bj',            'password'=>Hash::make('Gasa2026!'),      'role'=>'ROLE_ADMIN',              'centre_id'=>null,  'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()],
-            ['name'=>'SOSSOU Marc',    'email'=>'responsable.gbegamey@gasa.bj', 'password'=>Hash::make('Gbegamey2026!'), 'role'=>'ROLE_RESPONSABLE_CENTRE', 'centre_id'=>$cGbe, 'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()],
-            ['name'=>'HOUNSOU Alice',  'email'=>'responsable.akpakpa@gasa.bj',  'password'=>Hash::make('Akpakpa2026!'),  'role'=>'ROLE_RESPONSABLE_CENTRE', 'centre_id'=>$cAkp, 'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()],
-            ['name'=>'HONFO Pierre',   'email'=>'responsable.pnv@gasa.bj',      'password'=>Hash::make('Portonovo2026!'),'role'=>'ROLE_RESPONSABLE_CENTRE', 'centre_id'=>$cPnv, 'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()],
-            ['name'=>'KPEKPASSI Jean', 'email'=>'responsable.calavi@gasa.bj',   'password'=>Hash::make('Calavi2026!'),   'role'=>'ROLE_RESPONSABLE_CENTRE', 'centre_id'=>$cCal, 'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()],
-        ]);
+            // === MATIERES (3 par filiere_option × 3 niveaux = 27 total) ===
+            // hp_initial=6h / tpe_initial=3h pour les matières SIL-L1 utilisées en séances
+            // (2 séances HP de 3h = quota HP complet → TPE débloqué)
+            $matieresSpec = [
+                $foSIL  => [
+                    [$nSIL_L1, $nSIL_L2, $nSIL_L3],
+                    [
+                        ['BDD-SIL',   'Bases de Données et SGBDR',               2, 6, 3],
+                        ['ALG-SIL',   'Algorithmique et Structures de Données',   1, 6, 3],
+                        ['RES-SIL',   'Réseaux Informatiques',                    2, 6, 3],
+                    ],
+                ],
+                $foGEER => [
+                    [$nGEER_L1, $nGEER_L2, $nGEER_L3],
+                    [
+                        ['ELEC-GEER', 'Électricité Générale',                    1, 6, 3],
+                        ['ENR-GEER',  'Énergies Renouvelables',                   1, 6, 3],
+                        ['AUTO-GEER', 'Automatismes Industriels',                 2, 6, 3],
+                    ],
+                ],
+                $foRIT  => [
+                    [$nRIT_L1, $nRIT_L2, $nRIT_L3],
+                    [
+                        ['TRANS-RIT', 'Transmission des Données',                1, 6, 3],
+                        ['COMM-RIT',  'Commutation et Routage',                   2, 6, 3],
+                        ['PROTO-RIT', 'Protocoles Réseau',                        2, 6, 3],
+                    ],
+                ],
+            ];
 
-        // ── Professeurs — Gbégamey
-        $profsGbe = [
-            ['DEGBOE Désiré',        'degboe@gasa.bj',       'PROF-GBE-001'],
-            ['AKPONNA Marc-Aurèle',  'akponna@gasa.bj',      'PROF-GBE-002'],
-            ['LALEYE Sylvestre',     'laleye@gasa.bj',       'PROF-GBE-003'],
-            ['AHOUANSOU Fernand',    'ahouansou@gasa.bj',    'PROF-GBE-004'],
-            ['AGBOCOU Emmanuel',     'agbocou@gasa.bj',      'PROF-GBE-005'],
-            ['DJOHOU Arsène',        'djohou@gasa.bj',       'PROF-GBE-006'],
-            ['LAURIANO Patrice',     'lauriano@gasa.bj',     'PROF-GBE-007'],
-            ['SEFOU Rodrigue',       'sefou@gasa.bj',        'PROF-GBE-008'],
-            ['AGUEGUE Norbert',      'aguegue@gasa.bj',      'PROF-GBE-009'],
-            ['KWAK Stéphane',        'kwak@gasa.bj',         'PROF-GBE-010'],
-            ['ADEGBOLA Raphaël',     'adegbola@gasa.bj',     'PROF-GBE-011'],
-            ['ALLOGNON Bertrand',    'allognon@gasa.bj',     'PROF-GBE-012'],
-            ['AYITEVI Claude',       'ayitevi@gasa.bj',      'PROF-GBE-013'],
-            ['DOVONON Martin',       'dovonon@gasa.bj',      'PROF-GBE-014'],
-            ['HOUETO Wilfrid',       'houeto@gasa.bj',       'PROF-GBE-015'],
-            ['EGBAKO Salomé',        'egbako@gasa.bj',       'PROF-GBE-016'],
-            ['FANDE Idriss',         'fande@gasa.bj',        'PROF-GBE-017'],
-            ['SANNI Soumaïla',       'sanni@gasa.bj',        'PROF-GBE-018'],
-            ['HOUSSOU Barnabé',      'houssou@gasa.bj',      'PROF-GBE-019'],
-            ['MONTCHO David',        'montcho@gasa.bj',      'PROF-GBE-020'],
-            ['AHOUAN-DJINOU Rosine', 'ahouandjinou@gasa.bj', 'PROF-GBE-021'],
-        ];
-        foreach ($profsGbe as [$name,$email,$badge]) {
-            DB::table('users')->insert(['name'=>$name,'email'=>$email,'password'=>Hash::make('Prof2026!'),'role'=>'ROLE_PROFESSEUR','centre_id'=>$cGbe,'badge_uid'=>$badge,'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
-        }
+            foreach ($matieresSpec as $foId => [$niveaux, $mats]) {
+                foreach ($niveaux as $nId) {
+                    foreach ($mats as [$code, $nom, $sem, $hp, $tpe]) {
+                        DB::table('matieres')->insert([
+                            'nom'         => $nom,
+                            'code'        => $code,
+                            'semestre'    => $sem,
+                            'hp_initial'  => $hp,
+                            'tpe_initial' => $tpe,
+                            'filiere_id'  => $fGE,
+                            'niveau_id'   => $nId,
+                            'archive'     => false,
+                            'created_at'  => $now,
+                            'updated_at'  => $now,
+                        ]);
+                    }
+                }
+            }
 
-        // ── Professeurs — Akpakpa
-        $profsAkp = [
-            ['AZONDEKON Pascal','azondekon@gasa.bj','PROF-AKP-001'],
-            ['BIAOU Roland',    'biaou@gasa.bj',    'PROF-AKP-002'],
-            ['CODJIA Hermance', 'codjia@gasa.bj',   'PROF-AKP-003'],
-            ['DANHOU Gérard',   'danhou@gasa.bj',   'PROF-AKP-004'],
-            ['ELEGBE Serge',    'elegbe@gasa.bj',   'PROF-AKP-005'],
-            ['FAGBEMI Lydie',   'fagbemi@gasa.bj',  'PROF-AKP-006'],
-        ];
-        foreach ($profsAkp as [$name,$email,$badge]) {
-            DB::table('users')->insert(['name'=>$name,'email'=>$email,'password'=>Hash::make('Prof2026!'),'role'=>'ROLE_PROFESSEUR','centre_id'=>$cAkp,'badge_uid'=>$badge,'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
-        }
+            // IDs des matières SIL-L1 utilisées dans les séances
+            $mBDD  = DB::table('matieres')->where('code', 'BDD-SIL')->where('niveau_id', $nSIL_L1)->value('id');
+            $mALG  = DB::table('matieres')->where('code', 'ALG-SIL')->where('niveau_id', $nSIL_L1)->value('id');
+            $mRES  = DB::table('matieres')->where('code', 'RES-SIL')->where('niveau_id', $nSIL_L1)->value('id');
+            // IDs GEER-L1 pour matiere_professeur de prof3
+            $mENR  = DB::table('matieres')->where('code', 'ENR-GEER')->where('niveau_id', $nGEER_L1)->value('id');
+            $mAUTO = DB::table('matieres')->where('code', 'AUTO-GEER')->where('niveau_id', $nGEER_L1)->value('id');
+            // ID ELEC-GEER-L1 pour matiere_professeur de prof2
+            $mELEC = DB::table('matieres')->where('code', 'ELEC-GEER')->where('niveau_id', $nGEER_L1)->value('id');
 
-        // ── Professeurs — Porto-Novo
-        $profsPnv = [
-            ['GBAGUIDI Albert','gbaguidi@gasa.bj','PROF-PNV-001'],
-            ['HOUNYE Thérèse', 'hounye@gasa.bj',  'PROF-PNV-002'],
-            ['IWEBI Camille',  'iwebi@gasa.bj',   'PROF-PNV-003'],
-        ];
-        foreach ($profsPnv as [$name,$email,$badge]) {
-            DB::table('users')->insert(['name'=>$name,'email'=>$email,'password'=>Hash::make('Prof2026!'),'role'=>'ROLE_PROFESSEUR','centre_id'=>$cPnv,'badge_uid'=>$badge,'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
-        }
+            // === USERS ===
+            $admin = DB::table('users')->insertGetId([
+                'name'               => 'AYI Théophane',
+                'role'               => 'ROLE_ADMIN',
+                'centre_id'          => null,
+                'email'              => 'admin@gasa.bj',
+                'telephone'          => '+229 97000001',
+                'badge_uid'          => null,
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        // ── Professeurs — Calavi
-        $profsCal = [
-            ['JOHNSON Maxime',   'johnson@gasa.bj',    'PROF-CAL-001'],
-            ['KOUDOUS Inès',     'koudous@gasa.bj',    'PROF-CAL-002'],
-            ['LANTONKPODE Félix','lantonkpode@gasa.bj','PROF-CAL-003'],
-            ['MESSAN Virginie',  'messan@gasa.bj',     'PROF-CAL-004'],
-        ];
-        foreach ($profsCal as [$name,$email,$badge]) {
-            DB::table('users')->insert(['name'=>$name,'email'=>$email,'password'=>Hash::make('Prof2026!'),'role'=>'ROLE_PROFESSEUR','centre_id'=>$cCal,'badge_uid'=>$badge,'email_verified_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
-        }
+            $respGbe = DB::table('users')->insertGetId([
+                'name'               => 'SOSSOU Marc',
+                'role'               => 'ROLE_RESPONSABLE_CENTRE',
+                'centre_id'          => $cGbe,
+                'email'              => 'resp.gbegamey@gasa.bj',
+                'telephone'          => '+229 97000002',
+                'badge_uid'          => null,
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // SALLES
-        // ══════════════════════════════════════════════════════════════════
-        $sallesData = [
-            [$cGbe,'Amphi A',    120,'Amphithéâtre'],
-            [$cGbe,'Salle 101',   50,'Salle de cours'],
-            [$cGbe,'Salle 102',   50,'Salle de cours'],
-            [$cGbe,'Salle 103',   50,'Salle de cours'],
-            [$cGbe,'Labo Info A', 25,'Laboratoire informatique'],
-            [$cGbe,'Labo Info B', 25,'Laboratoire informatique'],
-            [$cGbe,'Salle TP',    20,'Salle de travaux pratiques'],
-            [$cAkp,'Amphi B',    100,'Amphithéâtre'],
-            [$cAkp,'Salle A',     60,'Salle de cours'],
-            [$cAkp,'Salle B',     60,'Salle de cours'],
-            [$cAkp,'Labo Réseau', 24,'Laboratoire réseau'],
-            [$cPnv,'Salle 01',    50,'Salle de cours'],
-            [$cPnv,'Salle 02',    50,'Salle de cours'],
-            [$cPnv,'Salle 03',    40,'Salle de cours'],
-            [$cCal,'Salle Alpha', 60,'Salle de cours'],
-            [$cCal,'Salle Bêta',  60,'Salle de cours'],
-            [$cCal,'Labo Calavi', 30,'Laboratoire informatique'],
-        ];
-        foreach ($sallesData as [$cid,$nom,$cap,$type]) {
-            DB::table('salles')->insert(['nom'=>$nom,'capacite'=>$cap,'type'=>$type,'centre_id'=>$cid,'created_at'=>now(),'updated_at'=>now()]);
-        }
+            $respAkp = DB::table('users')->insertGetId([
+                'name'               => 'HOUNSOU Alice',
+                'role'               => 'ROLE_RESPONSABLE_CENTRE',
+                'centre_id'          => $cAkp,
+                'email'              => 'resp.akpakpa@gasa.bj',
+                'telephone'          => '+229 97000003',
+                'badge_uid'          => null,
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // GROUPES D'ÉTUDIANTS (Options) — 2025-2026 et 2024-2025
-        // ══════════════════════════════════════════════════════════════════
-        $a2425 = DB::table('annees_scolaires')->where('libelle','2024-2025')->value('id');
+            // 3 professeurs rattachés à Gbégamey, chacun avec badge_uid unique
+            $prof1 = DB::table('users')->insertGetId([
+                'name'               => 'DEGBOE Désiré',
+                'role'               => 'ROLE_PROFESSEUR',
+                'centre_id'          => $cGbe,
+                'email'              => 'degboe@gasa.bj',
+                'telephone'          => '+229 97000004',
+                'badge_uid'          => 'BADGE-PROF-GBE-001',
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        $groupes2526 = [
-            [$foSI, $nSI, $cGbe,'GE-SI L1 Gbégamey'],
-            [$foER, $nER, $cGbe,'GE-ER L1 Gbégamey'],
-            [$foSIL,$nSIL,$cGbe,'GE-SIL L1 Gbégamey'],
-            [$foRIT,$nRIT,$cGbe,'GE-RIT L1 Gbégamey'],
-            [$foBIO,$nBIO,$cGbe,'GE-BIOTECH L1 Gbégamey'],
-            [$foSG, $nSG, $cGbe,'GE-SG L1 Gbégamey'],
-            [$foSI, $nSI, $cAkp,'GE-SI L1 Akpakpa'],
-            [$foSIL,$nSIL,$cAkp,'GE-SIL L1 Akpakpa'],
-            [$foRIT,$nRIT,$cAkp,'GE-RIT L1 Akpakpa'],
-            [$foBIO,$nBIO,$cAkp,'GE-BIOTECH L1 Akpakpa'],
-            [$foSI, $nSI, $cPnv,'GE-SI L1 Porto-Novo'],
-            [$foSIL,$nSIL,$cPnv,'GE-SIL L1 Porto-Novo'],
-            [$foSG, $nSG, $cPnv,'GE-SG L1 Porto-Novo'],
-            [$foSI, $nSI, $cCal,'GE-SI L1 Calavi'],
-            [$foSIL,$nSIL,$cCal,'GE-SIL L1 Calavi'],
-            [$foRIT,$nRIT,$cCal,'GE-RIT L1 Calavi'],
-        ];
-        foreach ($groupes2526 as [$fo,$niv,$cid,$nom]) {
-            DB::table('options')->insert(['nom'=>$nom,'filiere_option_id'=>$fo,'niveau_id'=>$niv,'centre_id'=>$cid,'annee_scolaire_id'=>$a2526,'created_at'=>now(),'updated_at'=>now()]);
-        }
+            $prof2 = DB::table('users')->insertGetId([
+                'name'               => 'AKPONNA Marc-Aurèle',
+                'role'               => 'ROLE_PROFESSEUR',
+                'centre_id'          => $cGbe,
+                'email'              => 'akponna@gasa.bj',
+                'telephone'          => '+229 97000005',
+                'badge_uid'          => 'BADGE-PROF-GBE-002',
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        $groupes2425 = [
-            [$foSI, $nSI, $cGbe,'GE-SI L1 Gbégamey 2024-2025'],
-            [$foSIL,$nSIL,$cGbe,'GE-SIL L1 Gbégamey 2024-2025'],
-            [$foRIT,$nRIT,$cGbe,'GE-RIT L1 Gbégamey 2024-2025'],
-            [$foBIO,$nBIO,$cGbe,'GE-BIOTECH L1 Gbégamey 2024-2025'],
-            [$foSG, $nSG, $cGbe,'GE-SG L1 Gbégamey 2024-2025'],
-        ];
-        foreach ($groupes2425 as [$fo,$niv,$cid,$nom]) {
-            DB::table('options')->insert(['nom'=>$nom,'filiere_option_id'=>$fo,'niveau_id'=>$niv,'centre_id'=>$cid,'annee_scolaire_id'=>$a2425,'created_at'=>now(),'updated_at'=>now()]);
-        }
+            $prof3 = DB::table('users')->insertGetId([
+                'name'               => 'LALEYE Sylvestre',
+                'role'               => 'ROLE_PROFESSEUR',
+                'centre_id'          => $cGbe,
+                'email'              => 'laleye@gasa.bj',
+                'telephone'          => '+229 97000006',
+                'badge_uid'          => 'BADGE-PROF-GBE-003',
+                'email_verified_at'  => $now,
+                'password'           => Hash::make('Password123!'),
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ]);
 
-        // ══════════════════════════════════════════════════════════════════
-        // QUOTAS MATIÈRES — initialisation Gbégamey 2025-2026
-        // ══════════════════════════════════════════════════════════════════
-        $matieresAll = DB::table('matieres')->get();
-        foreach ($matieresAll as $mat) {
-            DB::table('matiere_centre_annee')->insert([
-                'matiere_id'        => $mat->id,
+            // === MATIERE_PROFESSEUR ===
+            // Chaque prof enseigne 2 matières (habilitation, pas nécessairement les mêmes que les séances)
+            DB::table('matiere_professeur')->insert([
+                ['user_id' => $prof1, 'matiere_id' => $mBDD],   // Prof1 → BDD-SIL-L1
+                ['user_id' => $prof1, 'matiere_id' => $mALG],   // Prof1 → ALG-SIL-L1
+                ['user_id' => $prof2, 'matiere_id' => $mRES],   // Prof2 → RES-SIL-L1
+                ['user_id' => $prof2, 'matiere_id' => $mELEC],  // Prof2 → ELEC-GEER-L1
+                ['user_id' => $prof3, 'matiere_id' => $mENR],   // Prof3 → ENR-GEER-L1
+                ['user_id' => $prof3, 'matiere_id' => $mAUTO],  // Prof3 → AUTO-GEER-L1
+            ]);
+
+            // === OPTIONS (groupes-classes, 2 dans Gbégamey pour 2025-2026) ===
+            $optSIL = DB::table('options')->insertGetId([
+                'nom'               => 'GE-SIL L1 Gbégamey 2025-2026',
+                'filiere_option_id' => $foSIL,
+                'niveau_id'         => $nSIL_L1,
                 'centre_id'         => $cGbe,
                 'annee_scolaire_id' => $a2526,
-                'hp_restant'        => $mat->hp_initial,
-                'tpe_dynamique'     => $mat->tpe_initial,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'responsable_nom'   => null,
+                'created_at'        => $now,
+                'updated_at'        => $now,
             ]);
-        }
+            $optRIT = DB::table('options')->insertGetId([
+                'nom'               => 'GE-RIT L1 Gbégamey 2025-2026',
+                'filiere_option_id' => $foRIT,
+                'niveau_id'         => $nRIT_L1,
+                'centre_id'         => $cGbe,
+                'annee_scolaire_id' => $a2526,
+                'responsable_nom'   => null,
+                'created_at'        => $now,
+                'updated_at'        => $now,
+            ]);
 
-        $this->command->info('✅ GASA-ERP — Structure de base insérée !');
-        $this->command->table(['Email','Mot de passe','Rôle'],[
-            ['directeur@gasa.bj',            'Gasa2026!',       'Directeur (Admin)'],
-            ['responsable.gbegamey@gasa.bj', 'Gbegamey2026!',  'Responsable Gbégamey'],
-            ['responsable.akpakpa@gasa.bj',  'Akpakpa2026!',   'Responsable Akpakpa'],
-            ['responsable.pnv@gasa.bj',      'Portonovo2026!', 'Responsable Porto-Novo'],
-            ['responsable.calavi@gasa.bj',   'Calavi2026!',    'Responsable Calavi'],
-            ['[prof]@gasa.bj',               'Prof2026!',      'Professeurs (34 au total)'],
-        ]);
+            // === ETUDIANTS (10, badge_uid unique pour chacun) ===
+            $etudiantsDef = [
+                ['ETU-2526-001', 'ADJOVI',   'Rosine',  'adjovi.rosine@etu.gasa.bj',    '+229 96001001', 'BADGE-ETU-001', '2003-04-12'],
+                ['ETU-2526-002', 'BELLO',    'Kouamé',  'bello.kouame@etu.gasa.bj',     '+229 96001002', 'BADGE-ETU-002', '2003-07-23'],
+                ['ETU-2526-003', 'CHABI',    'Farida',  'chabi.farida@etu.gasa.bj',     '+229 96001003', 'BADGE-ETU-003', '2002-11-05'],
+                ['ETU-2526-004', 'DOSSOU',   'Alain',   'dossou.alain@etu.gasa.bj',     '+229 96001004', 'BADGE-ETU-004', '2003-01-17'],
+                ['ETU-2526-005', 'EGUE',     'Serge',   'egue.serge@etu.gasa.bj',       '+229 96001005', 'BADGE-ETU-005', '2004-03-30'],
+                ['ETU-2526-006', 'FAVI',     'Hélène',  'favi.helene@etu.gasa.bj',      '+229 96001006', 'BADGE-ETU-006', '2003-06-14'],
+                ['ETU-2526-007', 'GANDJI',   'Pierre',  'gandji.pierre@etu.gasa.bj',    '+229 96001007', 'BADGE-ETU-007', '2002-09-08'],
+                ['ETU-2526-008', 'HOUETO',   'Marlène', 'houeto.marlene@etu.gasa.bj',   '+229 96001008', 'BADGE-ETU-008', '2003-12-21'],
+                ['ETU-2526-009', 'IDOSSOU',  'Gilles',  'idossou.gilles@etu.gasa.bj',   '+229 96001009', 'BADGE-ETU-009', '2004-02-03'],
+                ['ETU-2526-010', 'JOHNSON',  'Laïda',   'johnson.laida@etu.gasa.bj',    '+229 96001010', 'BADGE-ETU-010', '2003-08-16'],
+            ];
+
+            $etuIds = [];
+            foreach ($etudiantsDef as [$mat, $nom, $prenom, $email, $tel, $badge, $dob]) {
+                $etuIds[] = DB::table('etudiants')->insertGetId([
+                    'matricule'       => $mat,
+                    'nom'             => $nom,
+                    'prenom'          => $prenom,
+                    'email'           => $email,
+                    'telephone'       => $tel,
+                    'badge_uid'       => $badge,
+                    'date_naissance'  => $dob,
+                    'created_at'      => $now,
+                    'updated_at'      => $now,
+                ]);
+            }
+
+            // === INSCRIPTIONS ===
+            // Étudiants 0-4 → optSIL ; Étudiants 5-9 → optRIT
+            $inscSIL = [];
+            foreach (array_slice($etuIds, 0, 5) as $eId) {
+                $inscSIL[] = DB::table('inscriptions')->insertGetId([
+                    'etudiant_id'       => $eId,
+                    'option_id'         => $optSIL,
+                    'annee_scolaire_id' => $a2526,
+                    'statut'            => 'actif',
+                    'date_inscription'  => '2025-09-15',
+                    'created_at'        => $now,
+                    'updated_at'        => $now,
+                ]);
+            }
+            foreach (array_slice($etuIds, 5, 5) as $eId) {
+                DB::table('inscriptions')->insert([
+                    'etudiant_id'       => $eId,
+                    'option_id'         => $optRIT,
+                    'annee_scolaire_id' => $a2526,
+                    'statut'            => 'actif',
+                    'date_inscription'  => '2025-09-15',
+                    'created_at'        => $now,
+                    'updated_at'        => $now,
+                ]);
+            }
+
+            // === SALLES ===
+            // 2 salles Gbégamey (cap 30 et 50) + 1 salle Akpakpa
+            $salleA = DB::table('salles')->insertGetId([
+                'nom'        => 'Salle 101',
+                'capacite'   => 30,
+                'type'       => 'Salle de cours',
+                'centre_id'  => $cGbe,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $salleB = DB::table('salles')->insertGetId([
+                'nom'        => 'Amphi A',
+                'capacite'   => 50,
+                'type'       => 'Amphithéâtre',
+                'centre_id'  => $cGbe,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $salleC = DB::table('salles')->insertGetId([
+                'nom'        => 'Salle A',
+                'capacite'   => 40,
+                'type'       => 'Salle de cours',
+                'centre_id'  => $cAkp,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            // === EQUIPEMENTS (2 par salle = 6 total) ===
+            DB::table('equipements')->insert([
+                ['nom' => 'Tableau blanc',           'type_materiel' => 'Mobilier',        'numero_serie' => 'TB-GBE-101-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Vidéoprojecteur',          'type_materiel' => 'Électronique',    'numero_serie' => 'VP-GBE-101-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Micro HF',                 'type_materiel' => 'Électronique',    'numero_serie' => 'MIC-GBE-AMP-01',  'etat' => 'bon', 'quantite' => 2, 'salle_id' => $salleB, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Système de sonorisation',  'type_materiel' => 'Électronique',    'numero_serie' => 'SON-GBE-AMP-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleB, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Tableau noir',             'type_materiel' => 'Mobilier',        'numero_serie' => 'TN-AKP-A-01',     'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Climatiseur',              'type_materiel' => 'Électroménager',  'numero_serie' => 'CLIM-AKP-A-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
+            ]);
+
+            // === MATIERE_CENTRE_ANNEE ===
+            // Initialiser hp_restant=hp_initial et tpe_dynamique=tpe_initial pour chaque (matière × centre)
+            $allMats = DB::table('matieres')->select('id', 'hp_initial', 'tpe_initial')->get();
+            $mcaRows = [];
+            foreach ($allMats as $mat) {
+                foreach ([$cGbe, $cAkp] as $cId) {
+                    $mcaRows[] = [
+                        'matiere_id'        => $mat->id,
+                        'centre_id'         => $cId,
+                        'annee_scolaire_id' => $a2526,
+                        'hp_restant'        => $mat->hp_initial,
+                        'tpe_dynamique'     => $mat->tpe_initial,
+                        'created_at'        => $now,
+                        'updated_at'        => $now,
+                    ];
+                }
+            }
+            DB::table('matiere_centre_annee')->insert($mcaRows);
+
+            // === SEANCES ===
+            // Règles respectées :
+            //   • Durée minimum 3h (08:00-11:00) pour toutes les séances
+            //   • HP terminés avant TPE pour chaque matière (hp_restant=0 requis)
+            //   • Aucun chevauchement salle ni professeur sur le même créneau
+            //   • Cas d'absence (HP2-ALG 03/06) avec vases communicants simulés dans MCA
+            //
+            // Chronologie et effet sur MCA (hp_initial=6, tpe_initial=3) :
+            //   26/05 HP1-BDD prof1 salleA ✓ → BDD hp_restant: 6→3
+            //   27/05 HP1-ALG prof1 salleA ✓ → ALG hp_restant: 6→3
+            //   28/05 HP1-RES prof2 salleA ✓ → RES hp_restant: 6→3
+            //   02/06 HP2-BDD prof1 salleA ✓ → BDD hp_restant: 3→0
+            //   03/06 HP2-ALG prof1 salleA ✗ ABSENT → ALG hp_restant: 3+3=6, tpe_dyn: 3-3=0
+            //   04/06 HP2-RES prof2 salleA ✓ → RES hp_restant: 3→0
+            //   09/06 TPE-BDD prof1 salleB ✓ (BDD hp_restant=0 ✓)
+            //   10/06 HPratt-ALG prof1 salleB ✓ → ALG hp_restant: 6→3
+            //   11/06 TPE-RES prof2 salleA ✓ (RES hp_restant=0 ✓)
+            //   17/06 HPratt2-ALG prof1 salleB planifiée (dashboard)
+            //
+            // État final MCA Gbégamey :
+            //   BDD → hp_restant=0, tpe_dynamique=3
+            //   ALG → hp_restant=3, tpe_dynamique=0  (TPE ALG non débloqué)
+            //   RES → hp_restant=0, tpe_dynamique=3
+
+            // HP1-BDD — 26/05 présent
+            $seanceHP1BDD = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mBDD,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-05-26 08:00:00',
+                'fin'                    => '2026-05-26 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-05-26 07:55:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 3,
+                'cloture_validee_at'     => '2026-05-26 11:10:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HP1-ALG — 27/05 présent
+            $seanceHP1ALG = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mALG,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-05-27 08:00:00',
+                'fin'                    => '2026-05-27 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-05-27 07:58:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 3,
+                'cloture_validee_at'     => '2026-05-27 11:05:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HP1-RES — 28/05 présent
+            $seanceHP1RES = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mRES,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof2,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-05-28 08:00:00',
+                'fin'                    => '2026-05-28 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-05-28 08:02:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 3,
+                'cloture_validee_at'     => '2026-05-28 11:15:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HP2-BDD — 02/06 présent → BDD hp_restant: 3→0
+            $seanceHP2BDD = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mBDD,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-02 08:00:00',
+                'fin'                    => '2026-06-02 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-06-02 07:57:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 4,
+                'cloture_validee_at'     => '2026-06-02 11:08:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HP2-ALG — 03/06 ABSENT (heure_scan_professeur=null)
+            // Vases communicants : ALG hp_restant: 3+3=6, tpe_dynamique: max(0,3-3)=0
+            $seanceHP2ALG = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mALG,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-03 08:00:00',
+                'fin'                    => '2026-06-03 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => null,
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => null,
+                'cloture_validee_at'     => null,
+                'cloture_validee_par'    => null,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HP2-RES — 04/06 présent → RES hp_restant: 3→0
+            $seanceHP2RES = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mRES,
+                'salle_id'               => $salleA,
+                'professeur_id'          => $prof2,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-04 08:00:00',
+                'fin'                    => '2026-06-04 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-06-04 08:01:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 3,
+                'cloture_validee_at'     => '2026-06-04 11:12:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // TPE-BDD — 09/06 (BDD hp_restant=0 ✓ → TPE autorisé, pas de professeur)
+            $seanceTPEBDD = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mBDD,
+                'salle_id'               => $salleB,
+                'professeur_id'          => null,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-09 08:00:00',
+                'fin'                    => '2026-06-09 11:00:00',
+                'type'                   => 'TPE',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => null,
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => null,
+                'cloture_validee_at'     => '2026-06-09 11:00:00',
+                'cloture_validee_par'    => null,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HPratt-ALG — 10/06 rattrapage HP → ALG hp_restant: 6→3
+            $seanceHPrattALG = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mALG,
+                'salle_id'               => $salleB,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-10 08:00:00',
+                'fin'                    => '2026-06-10 11:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => '2026-06-10 07:55:00',
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => 3,
+                'cloture_validee_at'     => '2026-06-10 11:10:00',
+                'cloture_validee_par'    => $respGbe,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // TPE-RES — 11/06 (RES hp_restant=0 ✓ → TPE autorisé, pas de professeur)
+            $seanceTPERES = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mRES,
+                'salle_id'               => $salleA,
+                'professeur_id'          => null,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-11 08:00:00',
+                'fin'                    => '2026-06-11 11:00:00',
+                'type'                   => 'TPE',
+                'statut'                 => 'terminee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => null,
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => null,
+                'cloture_validee_at'     => '2026-06-11 11:00:00',
+                'cloture_validee_par'    => null,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // HPratt2-ALG — 17/06 14:00 planifiée (ALG hp_restant=3 → 2e rattrapage nécessaire)
+            $seanceHPratt2ALG = DB::table('seances')->insertGetId([
+                'matiere_id'             => $mALG,
+                'salle_id'               => $salleB,
+                'professeur_id'          => $prof1,
+                'annee_scolaire_id'      => $a2526,
+                'debut'                  => '2026-06-17 14:00:00',
+                'fin'                    => '2026-06-17 17:00:00',
+                'type'                   => 'HP',
+                'statut'                 => 'planifiee',
+                'is_inter_centre'        => false,
+                'est_composition'        => false,
+                'heure_scan_professeur'  => null,
+                'heure_debut_pause'      => null,
+                'heure_fin_pause'        => null,
+                'durees_pauses_minutes'  => 0,
+                'nb_presents_valide'     => null,
+                'cloture_validee_at'     => null,
+                'cloture_validee_par'    => null,
+                'emploi_du_temps_id'     => null,
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+
+            // Mise à jour matiere_centre_annee : état final après toutes les séances terminées
+            DB::table('matiere_centre_annee')
+                ->where('matiere_id', $mBDD)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
+                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);
+            DB::table('matiere_centre_annee')
+                ->where('matiere_id', $mALG)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
+                ->update(['hp_restant' => 3, 'tpe_dynamique' => 0]);
+            DB::table('matiere_centre_annee')
+                ->where('matiere_id', $mRES)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
+                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);
+
+            // === OPTION_SEANCE ===
+            DB::table('option_seance')->insert([
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP1BDD],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP1ALG],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP1RES],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP2BDD],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP2ALG],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHP2RES],
+                ['option_id' => $optSIL, 'seance_id' => $seanceTPEBDD],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHPrattALG],
+                ['option_id' => $optSIL, 'seance_id' => $seanceTPERES],
+                ['option_id' => $optSIL, 'seance_id' => $seanceHPratt2ALG],
+            ]);
+
+            // === PRESENCES ===
+            // 5 étudiants SIL × 9 séances terminées = 45 présences
+            // Cycle normal (prof présent) : present, present, absent, present, presence_insuffisante
+            // HP2-ALG (prof absent) : tous les étudiants absents (aucun cours n'a eu lieu)
+            $seancesDates = [
+                $seanceHP1BDD    => ['2026-05-26 08:00:00', '2026-05-26 11:00:00', true],
+                $seanceHP1ALG    => ['2026-05-27 08:00:00', '2026-05-27 11:00:00', true],
+                $seanceHP1RES    => ['2026-05-28 08:00:00', '2026-05-28 11:00:00', true],
+                $seanceHP2BDD    => ['2026-06-02 08:00:00', '2026-06-02 11:00:00', true],
+                $seanceHP2ALG    => ['2026-06-03 08:00:00', '2026-06-03 11:00:00', false],
+                $seanceHP2RES    => ['2026-06-04 08:00:00', '2026-06-04 11:00:00', true],
+                $seanceTPEBDD    => ['2026-06-09 08:00:00', '2026-06-09 11:00:00', true],
+                $seanceHPrattALG => ['2026-06-10 08:00:00', '2026-06-10 11:00:00', true],
+                $seanceTPERES    => ['2026-06-11 08:00:00', '2026-06-11 11:00:00', true],
+            ];
+
+            $statutCycle = ['present', 'present', 'absent', 'present', 'presence_insuffisante'];
+            $presRows = [];
+
+            foreach ($seancesDates as $sId => [$debStr, $finStr, $profPresent]) {
+                $deb = Carbon::parse($debStr);
+                $fin = Carbon::parse($finStr);
+
+                foreach ($inscSIL as $idx => $inscId) {
+                    if (!$profPresent) {
+                        $presRows[] = [
+                            'seance_id'               => $sId,
+                            'inscription_id'          => $inscId,
+                            'heure_entree'            => null,
+                            'heure_sortie_definitive' => null,
+                            'statut'                  => 'absent',
+                            'created_at'              => $now,
+                            'updated_at'              => $now,
+                        ];
+                        continue;
+                    }
+
+                    $statut  = $statutCycle[$idx];
+                    $hEntree = null;
+                    $hSortie = null;
+
+                    if ($statut === 'present') {
+                        $offsetMin = [0 => 0, 1 => 5, 3 => 15][$idx] ?? 0;
+                        $hEntree   = $deb->copy()->addMinutes($offsetMin)->toDateTimeString();
+                        $hSortie   = $fin->toDateTimeString();
+                    } elseif ($statut === 'presence_insuffisante') {
+                        $hEntree = $deb->copy()->addMinutes(20)->toDateTimeString();
+                        $hSortie = $fin->copy()->subMinutes(20)->toDateTimeString();
+                    }
+
+                    $presRows[] = [
+                        'seance_id'               => $sId,
+                        'inscription_id'          => $inscId,
+                        'heure_entree'            => $hEntree,
+                        'heure_sortie_definitive' => $hSortie,
+                        'statut'                  => $statut,
+                        'created_at'              => $now,
+                        'updated_at'              => $now,
+                    ];
+                }
+            }
+            DB::table('presences')->insert($presRows);
+
+            // === SORTIES_TEMPORAIRES ===
+            // Sur HP1-BDD (stu0=present heure_entree=08:00, stu1=present heure_entree=08:05)
+            $presHP1BDD_stu0 = DB::table('presences')
+                ->where('seance_id', $seanceHP1BDD)
+                ->where('inscription_id', $inscSIL[0])
+                ->value('id');
+            $presHP1BDD_stu1 = DB::table('presences')
+                ->where('seance_id', $seanceHP1BDD)
+                ->where('inscription_id', $inscSIL[1])
+                ->value('id');
+
+            DB::table('sorties_temporaires')->insert([
+                'presence_id'     => $presHP1BDD_stu0,
+                'heure_sortie'    => '2026-05-26 09:00:00',
+                'heure_rentree'   => '2026-05-26 09:12:00',
+                'duree_minutes'   => 12,
+                'rentree_refusee' => false,
+                'created_at'      => $now,
+                'updated_at'      => $now,
+            ]);
+            DB::table('sorties_temporaires')->insert([
+                'presence_id'     => $presHP1BDD_stu1,
+                'heure_sortie'    => '2026-05-26 09:30:00',
+                'heure_rentree'   => null,
+                'duree_minutes'   => null,
+                'rentree_refusee' => true,
+                'created_at'      => $now,
+                'updated_at'      => $now,
+            ]);
+
+        });
+
+        $this->command->info('✅ GASA-ERP — Seed complet effectué avec succès !');
+        $this->command->table(
+            ['Email', 'Mot de passe', 'Rôle'],
+            [
+                ['admin@gasa.bj',           'Password123!', 'ROLE_ADMIN'],
+                ['resp.gbegamey@gasa.bj',   'Password123!', 'ROLE_RESPONSABLE_CENTRE (Gbégamey)'],
+                ['resp.akpakpa@gasa.bj',    'Password123!', 'ROLE_RESPONSABLE_CENTRE (Akpakpa)'],
+                ['degboe@gasa.bj',          'Password123!', 'ROLE_PROFESSEUR — BDD-SIL, ALG-SIL'],
+                ['akponna@gasa.bj',         'Password123!', 'ROLE_PROFESSEUR — RES-SIL, ELEC-GEER'],
+                ['laleye@gasa.bj',          'Password123!', 'ROLE_PROFESSEUR — ENR-GEER, AUTO-GEER'],
+            ]
+        );
+        $this->command->info('Séances test (toutes ≥ 3h) :');
+        $this->command->table(
+            ['Date', 'Type', 'Matière', 'Prof', 'Statut', 'Note'],
+            [
+                ['26/05', 'HP', 'BDD-SIL', 'DEGBOE',  'terminee', 'présent → hp_restant BDD 6→3'],
+                ['27/05', 'HP', 'ALG-SIL', 'DEGBOE',  'terminee', 'présent → hp_restant ALG 6→3'],
+                ['28/05', 'HP', 'RES-SIL', 'AKPONNA', 'terminee', 'présent → hp_restant RES 6→3'],
+                ['02/06', 'HP', 'BDD-SIL', 'DEGBOE',  'terminee', 'présent → hp_restant BDD 3→0 ✓'],
+                ['03/06', 'HP', 'ALG-SIL', 'DEGBOE',  'terminee', 'ABSENT  → hp_restant ALG 6, tpe_dyn 0'],
+                ['04/06', 'HP', 'RES-SIL', 'AKPONNA', 'terminee', 'présent → hp_restant RES 3→0 ✓'],
+                ['09/06', 'TPE','BDD-SIL', 'DEGBOE',  'terminee', 'HP complets → autorisé'],
+                ['10/06', 'HP', 'ALG-SIL', 'DEGBOE',  'terminee', 'rattrapage → hp_restant ALG 6→3'],
+                ['11/06', 'TPE','RES-SIL', 'AKPONNA', 'terminee', 'HP complets → autorisé'],
+                ['17/06', 'HP', 'ALG-SIL', 'DEGBOE',  'planifiee','2e rattrapage (dashboard)'],
+            ]
+        );
     }
 }

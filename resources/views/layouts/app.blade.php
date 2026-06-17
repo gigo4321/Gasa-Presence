@@ -83,7 +83,7 @@
         @endif
         @endadmin
 
-        @if(!auth()->user()->estAdmin() && $cid)
+        @if(!auth()->user()->estAdmin() && !auth()->user()->estProfesseur() && $cid)
         <a href="{{ route('dashboard.centre',$cid) }}" class="{{ request()->routeIs('dashboard.centre')?'active':'' }}"><i class="bi bi-house"></i> Tableau de Bord</a>
         <a href="{{ route('options.index',$cid) }}" class="{{ request()->routeIs('options.*')?'active':'' }}"><i class="bi bi-collection"></i> Groupes</a>
         <a href="{{ route('etudiants.index',$cid) }}" class="{{ request()->routeIs('etudiants.*')?'active':'' }}"><i class="bi bi-mortarboard"></i> Étudiants</a>
@@ -94,6 +94,13 @@
         <a href="{{ route('scan.index',$cid) }}" class="{{ request()->routeIs('scan.*')?'active':'' }}"><i class="bi bi-qr-code-scan"></i> Scan Accès</a>
         <a href="{{ route('matieres.index',$cid) }}" class="{{ request()->routeIs('matieres.*')?'active':'' }}"><i class="bi bi-book"></i> Matières</a>
         <a href="{{ route('presences.centre',$cid) }}" class="{{ request()->routeIs('presences.centre')?'active':'' }}"><i class="bi bi-clipboard2-check"></i> Présences</a>
+        @endif
+
+        @if(auth()->user()->estProfesseur() && $cid)
+        <a href="{{ route('seances.index', ['centreId' => $cid, 'prof_id' => auth()->id()]) }}"
+           class="{{ request()->routeIs('seances.*') || request()->routeIs('presences.fiche') ? 'active' : '' }}">
+            <i class="bi bi-calendar3-week"></i> Mes séances
+        </a>
         @endif
     </nav>
     <div class="sidebar-footer">

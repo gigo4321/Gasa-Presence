@@ -100,11 +100,23 @@
                 {{ $seance->heure_scan_professeur?->format('H:i') ?? 'Non badgé' }}
             </span>
         </div>
-        @if($seance->heure_debut_pause)
+        @if(($seance->durees_pauses_minutes ?? 0) > 0)
         <div class="info-item">
-            <label>Pause déclarée</label>
-            <span>{{ \Carbon\Carbon::parse($seance->heure_debut_pause)->format('H:i') }}
-                – {{ \Carbon\Carbon::parse($seance->heure_fin_pause)->format('H:i') }}</span>
+            <label>Pause(s) totale</label>
+            <span>{{ $seance->durees_pauses_minutes }} min</span>
+        </div>
+        @endif
+        @if($seance->heure_scan_professeur)
+        @php
+            $pdfEfMin = $seance->calculerDureeEffective();
+            $pdfEfH   = intdiv($pdfEfMin, 60);
+            $pdfEfRem = $pdfEfMin % 60;
+        @endphp
+        <div class="info-item">
+            <label>Durée effective</label>
+            <span style="color:#2e7d32;">
+                {{ $pdfEfH }}h{{ $pdfEfRem > 0 ? str_pad($pdfEfRem,2,'0',STR_PAD_LEFT).'min' : '' }}
+            </span>
         </div>
         @endif
     </div>
@@ -149,34 +161,35 @@
         </tr>
     </thead>
     <tbody>
-    @foreach($seance->presences as $i => $presence)
+    @foreach($seance->presences->sortBy(fn($p) => [$p->statut !== 'present', $p->inscription?->etudiant?->nom]) as $i => $presence)
     @php
-        $etu = $presence->etudiant;
+        $etu          = $presence->inscription?->etudiant;
+        $opt          = $presence->inscription?->option;
         $dureeSeance  = $seance->debut->diffInMinutes($seance->fin);
         $dureeSorties = $presence->sortiesTemporaires->sum('duree_minutes');
-        $dureeEff = ($presence->heure_entree && $presence->heure_sortie_definitive)
+        $dureeEff     = ($presence->heure_entree && $presence->heure_sortie_definitive)
             ? $presence->heure_entree->diffInMinutes($presence->heure_sortie_definitive) - $dureeSorties
             : null;
         $sc = match($presence->statut) {
-            'present'                     => 's-present',
-            'absent'                      => 's-absent',
-            'presence_insuffisante'       => 's-insuffisant',
-            default                       => 's-absent',
+            'present'                      => 's-present',
+            'absence_insuffisante',
+            'presence_insuffisante'        => 's-insuffisant',
+            default                        => 's-absent',
         };
         $statutLabel = match($presence->statut) {
-            'present'                     => 'Présent',
-            'absent'                      => 'Absent',
-            'presence_insuffisante'       => 'Insuffisant',
-            'sortie_anticipee_toleree'    => 'Sortie OK',
-            'sortie_anticipee_non_toleree'=> 'Sortie NOK',
-            default                       => $presence->statut,
+            'present'                      => 'Présent',
+            'absent'                       => 'Absent',
+            'presence_insuffisante'        => 'Insuffisant',
+            'sortie_anticipee_toleree'     => 'Sortie OK',
+            'sortie_anticipee_non_toleree' => 'Sortie NOK',
+            default                        => $presence->statut,
         };
     @endphp
     <tr>
         <td>{{ $i + 1 }}</td>
-        <td><code>{{ $etu?->matricule }}</code></td>
-        <td><strong>{{ $etu?->nom }} {{ $etu?->prenom }}</strong></td>
-        <td>{{ $etu?->option?->nom }}<br><small>{{ $etu?->option?->niveau?->libelle ?? '' }}</small></td>
+        <td><code>{{ $etu?->matricule ?? '—' }}</code></td>
+        <td><strong>{{ $etu ? strtoupper($etu->nom).' '.$etu->prenom : '—' }}</strong></td>
+        <td>{{ $opt?->nom }}<br><small>{{ $opt?->niveau?->libelle ?? '' }}</small></td>
         <td>{{ $presence->heure_entree?->format('H:i') ?? '—' }}</td>
         <td>{{ $presence->heure_sortie_definitive?->format('H:i') ?? '—' }}</td>
         <td>{{ $dureeEff !== null ? floor($dureeEff/60).'h'.str_pad($dureeEff%60,2,'0',STR_PAD_LEFT) : '—' }}</td>
