@@ -253,23 +253,30 @@
                     $nbAbsencesHP = $profSeancesTerminees->where('type','HP')
                         ->filter(fn($s) => $s->heure_scan_professeur === null)->count();
                 @endphp
-                <div class="d-flex gap-4 mb-3">
+                <div class="d-flex gap-4 align-items-start mb-3 flex-wrap">
                     <div>
                         <div style="font-size:22px;font-weight:800;color:#2D4A6B;">{{ $profHpFait }}h</div>
-                        <div style="font-size:11px;color:#5A6E8A;">Effectuées</div>
+                        <div style="font-size:11px;color:#5A6E8A;">Enseignées</div>
                     </div>
                     <div>
-                        <div style="font-size:22px;font-weight:800;color:{{ $profHpRestant > 0 ? '#6B2737' : '#4D7A4A' }};">{{ $profHpRestant }}h</div>
+                        @if($profHpRestant > 0)
+                        <div style="font-size:22px;font-weight:800;color:#6B2737;">{{ $profHpRestant }}h</div>
                         <div style="font-size:11px;color:#888;">Restantes</div>
+                        @else
+                        <div class="d-flex align-items-center gap-1" style="padding-top:3px;">
+                            <i class="bi bi-check-circle-fill" style="color:#4D7A4A;font-size:18px;"></i>
+                            <div style="font-size:12px;font-weight:700;color:#4D7A4A;line-height:1.2;">Quota<br>atteint</div>
+                        </div>
+                        @endif
                     </div>
                     <div>
                         <div style="font-size:22px;font-weight:800;color:var(--fonce);">{{ $profNbSeances }}</div>
-                        <div style="font-size:11px;color:#888;">Séances faites</div>
+                        <div style="font-size:11px;color:#888;">Avec présence</div>
                     </div>
                     @if($nbAbsencesHP > 0)
                     <div>
                         <div style="font-size:22px;font-weight:800;color:#92400E;">{{ $nbAbsencesHP }}</div>
-                        <div style="font-size:11px;color:#A16207;">Absence(s)</div>
+                        <div style="font-size:11px;color:#A16207;">Sans présence</div>
                     </div>
                     @endif
                 </div>
@@ -305,18 +312,21 @@
         @endif
     </div>
 
-    {{-- Historique HP du professeur pour cette matière --}}
-    @if($profSeancesTerminees->count() > 0)
+    {{-- Historique HP du professeur pour cette matière (HP uniquement) --}}
+    @php $hpHistorique = $profSeancesTerminees->where('type','HP')->sortByDesc('debut'); @endphp
+    @if($hpHistorique->count() > 0)
     <div class="mt-3 pt-3" style="border-top:1px solid #f0f0f0;">
         <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:8px;">
-            Historique HP professeur ({{ $profSeancesTerminees->count() }} séance(s))
+            Historique HP — {{ $hpHistorique->count() }} séance(s) terminée(s)
         </div>
         <div class="d-flex flex-wrap gap-2">
-            @foreach($profSeancesTerminees->sortByDesc('debut') as $s)
+            @foreach($hpHistorique as $s)
             <span class="badge rounded-pill px-3 py-2"
-                  style="font-size:11px;background:{{ $s->id === $seance->id ? 'var(--marron)' : '#E2EAF4' }};color:{{ $s->id === $seance->id ? '#fff' : '#2D4A6B' }};">
+                  style="font-size:11px;
+                         background:{{ $s->id === $seance->id ? 'var(--marron)' : ($s->heure_scan_professeur ? '#E2EAF4' : '#FDE68A') }};
+                         color:{{ $s->id === $seance->id ? '#fff' : ($s->heure_scan_professeur ? '#2D4A6B' : '#78350F') }};">
                 {{ $s->debut->format('d/m') }} · {{ round($s->duree_heures, 1) }}h
-                @if(!$s->heure_scan_professeur) <em>(absent)</em> @endif
+                @if(!$s->heure_scan_professeur) · <em>sans présence prof</em> @endif
                 @if($s->id === $seance->id) ← actuelle @endif
             </span>
             @endforeach
