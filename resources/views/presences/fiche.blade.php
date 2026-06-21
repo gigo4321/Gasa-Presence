@@ -171,7 +171,8 @@
 @endif
 
 {{-- ── NOTIFICATION VASES COMMUNICANTS ──────────────────────────────────── --}}
-@if(!$seance->heure_scan_professeur && $seance->statut === 'terminee' && $nbPresents > 0)
+{{-- Affichée dès que le professeur n'a pas badgé, quelle que soit l'assiduité étudiante --}}
+@if(!$seance->heure_scan_professeur && $seance->statut === 'terminee')
 @php
     $heuresAbsence = (int) ceil($seance->duree_heures);
     $tpeAvant      = $quota ? $quota->tpe_dynamique + $heuresAbsence : null;
@@ -187,14 +188,14 @@
                 Professeur absent — Vases communicants appliqués
             </div>
             <div style="font-size:13px;color:#92400E;margin-top:3px;">
-                {{ $seance->professeur?->name }} n'a pas badgé pour cette séance.
-                Les <strong>{{ $heuresAbsence }}h HP</strong> sont maintenues au quota (non déduites)
-                et une séance de rattrapage a été planifiée automatiquement.
+                <strong>{{ $seance->professeur?->name }}</strong> n'a pas badgé.
+                Les <strong>{{ $heuresAbsence }}h</strong> prévues cette séance sont à rattraper —
+                une séance de rattrapage a été planifiée automatiquement.
             </div>
         </div>
     </div>
     <div class="row g-3">
-        {{-- Étudiants présents --}}
+        {{-- Étudiants présents malgré l'absence du professeur --}}
         <div class="col-md-4">
             <div class="p-3 rounded-3 text-center" style="background:#FEF3C7;border:1px solid #FDE68A;">
                 <div style="font-size:10px;color:#78350F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
@@ -204,17 +205,19 @@
                 <div style="font-size:11px;color:#A16207;">sur {{ $totalInscrits }} inscrit(s)</div>
             </div>
         </div>
-        {{-- HP restantes inchangées --}}
+        {{-- Heures programmées = heures à rattraper --}}
         <div class="col-md-4">
             <div class="p-3 rounded-3 text-center" style="background:#EBF0F5;border:1px solid #B5C5D8;">
                 <div style="font-size:10px;color:#2D4A6B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
-                    HP restantes
+                    Heures à rattraper
                 </div>
-                <div style="font-size:30px;font-weight:800;color:#2D4A6B;">{{ $profHpRestant }}h</div>
-                <div style="font-size:11px;color:#5A6E8A;">inchangées · rattrapage requis</div>
+                <div style="font-size:30px;font-weight:800;color:#6B2737;">{{ $heuresAbsence }}h</div>
+                <div style="font-size:11px;color:#5A6E8A;">
+                    HP restantes total : <strong>{{ $profHpRestant }}h</strong>
+                </div>
             </div>
         </div>
-        {{-- TPE déduit --}}
+        {{-- TPE déduit en compensation --}}
         @if($quota && $tpeAvant !== null)
         <div class="col-md-4">
             <div class="p-3 rounded-3 text-center" style="background:#FEE2E2;border:1px solid #FECACA;">
@@ -351,22 +354,41 @@
 @php
     $authUser        = Auth::user();
     $estProfConcerne = $authUser->estProfesseur() && $authUser->id === $seance->professeur_id;
-    $peutValider     = ($estProfConcerne || $authUser->estAdmin()) && $seance->statut === 'terminee' && !$seance->cloture_validee_at;
+    $profAScanne     = (bool) $seance->heure_scan_professeur;
+    // Seul le professeur qui a badgé peut clôturer (+ admin en fallback).
+    // Si le professeur était absent (pas de scan), la clôture manuelle n'est pas disponible.
+    $peutValider     = ($estProfConcerne || $authUser->estAdmin())
+                       && $profAScanne
+                       && $seance->statut === 'terminee'
+                       && !$seance->cloture_validee_at;
     $dejaClose       = (bool) $seance->cloture_validee_at;
-    $validateur      = $dejaClose ? \App\Models\User::find($seance->cloture_validee_par) : null;
 @endphp
 
 @if($seance->statut === 'terminee' && $seance->type === 'HP')
 <div class="mb-4">
 
-    @if($dejaClose)
-    {{-- ── État : séance clôturée ── --}}
-    @php
-        $dm            = $dureeEffectiveMinutes;
-        $validePar     = $validateur;            // user qui a cliqué "valider"
-        $profDuCours   = $seance->professeur;    // prof assigné et ayant enseigné
-        $estValideAdmin = $validePar && (int)$validePar->id !== (int)$seance->professeur_id;
-    @endphp
+    @if(!$profAScanne)
+    {{-- ── Professeur absent : pas de clôture professeur à attendre ── --}}
+    <div class="rounded-4 p-4 d-flex align-items-start gap-3"
+         style="background:#FEF3C7;border:2px solid #F59E0B;">
+        <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle"
+             style="width:44px;height:44px;background:#FDE68A;font-size:20px;">
+            <i class="bi bi-person-x-fill" style="color:#92400E;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;color:#78350F;font-size:14px;">
+                Séance enregistrée sans présence du professeur
+            </div>
+            <div style="font-size:13px;color:#92400E;margin-top:2px;">
+                {{ $seance->professeur?->name }} n'a pas badgé — la séance a été clôturée automatiquement par le système.
+                Le rattrapage planifié devra être validé par le professeur.
+            </div>
+        </div>
+    </div>
+
+    @elseif($dejaClose)
+    {{-- ── Séance clôturée par le professeur ── --}}
+    @php $dm = $dureeEffectiveMinutes; @endphp
     <div class="rounded-4 p-4" style="background:#EDF2EC;border:2px solid #A0BAA0;">
         {{-- Ligne d'en-tête --}}
         <div class="d-flex align-items-start gap-3 mb-3">
@@ -376,10 +398,10 @@
             </div>
             <div class="flex-grow-1">
                 <div style="font-weight:700;color:#2A4528;font-size:15px;">
-                    Clôture validée — {{ $profDuCours?->name }}
-                    @if($profDuCours?->grade)
+                    Clôture validée — {{ $seance->professeur?->name }}
+                    @if($seance->professeur?->grade)
                     <span style="font-size:12px;font-weight:400;color:var(--marron);font-style:italic;">
-                        · {{ $profDuCours->grade }}
+                        · {{ $seance->professeur->grade }}
                     </span>
                     @endif
                 </div>
@@ -387,11 +409,6 @@
                     Le {{ $seance->cloture_validee_at->format('d/m/Y à H:i') }}
                     &nbsp;·&nbsp;<strong>{{ $seance->nb_presents_valide }}</strong> présent(s) confirmé(s)
                 </div>
-                @if($estValideAdmin)
-                <div class="mt-1" style="font-size:11px;color:#6B4E0A;background:#FEF9C3;border-radius:4px;padding:2px 8px;display:inline-block;">
-                    <i class="bi bi-shield-fill me-1"></i>Validé par l'administrateur <strong>{{ $validePar->name }}</strong> à la place du professeur
-                </div>
-                @endif
             </div>
         </div>
 
