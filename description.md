@@ -318,6 +318,11 @@ class SortieTemporaire {
 }
 
 class ContestationHoraire {
+    +duree_calculee_minutes : int
+    +duree_contestee_minutes : int
+    +motif : string
+    +statut : enum {en_attente, approuvee, rejetee}
+    +admin_note : string
 }
 
 ' Relations structurelles

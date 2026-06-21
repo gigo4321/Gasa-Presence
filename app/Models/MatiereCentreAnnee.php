@@ -8,11 +8,8 @@ class MatiereCentreAnnee extends Model {
     public function centre()        { return $this->belongsTo(Centre::class); }
     public function anneeScolaire() { return $this->belongsTo(AnneeScolaire::class); }
     public function appliquerVasesCommunicants(int $heures): void {
-        // Le prof doit rattraper ses heures
-        $this->hp_restant    = $this->hp_restant + $heures;
-
-        // On déduit ces heures du quota de TPE (le temps de pratique est sacrifié)
-        // On s'assure de ne pas descendre en dessous de zéro
+        // hp_restant reste inchangé : les heures manquées seront déduites lors du rattrapage
+        // Les heures perdues réduisent le quota TPE disponible en compensation
         $this->tpe_dynamique = max(0, $this->tpe_dynamique - $heures);
         $this->save();
     }

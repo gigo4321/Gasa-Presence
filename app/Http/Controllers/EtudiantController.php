@@ -32,12 +32,14 @@ class EtudiantController extends Controller
             );
         }
 
-        if ($statut = $request->get('statut')) $query->where('statut', $statut);
+        if ($statut   = $request->get('statut'))    $query->where('statut', $statut);
+        if ($optionId = $request->get('option_id')) $query->where('option_id', $optionId);
 
-        $inscriptions = $query->orderBy('created_at','desc')->paginate(20)->withQueryString();
-        $options      = $annee ? Option::where('centre_id',$centreId)->where('annee_scolaire_id',$annee->id)->with('filiereOption','niveau')->get() : collect();
+        $inscriptions  = $query->orderBy('created_at','desc')->paginate(20)->withQueryString();
+        $options       = $annee ? Option::where('centre_id',$centreId)->where('annee_scolaire_id',$annee->id)->with('filiereOption','niveau')->get() : collect();
+        $optionActive  = $optionId ? $options->firstWhere('id', $optionId) : null;
 
-        return view('etudiants.index', compact('inscriptions','options','centre','centreId','annee','annees'));
+        return view('etudiants.index', compact('inscriptions','options','optionActive','centre','centreId','annee','annees'));
     }
 
     // Créer profil + inscription en même temps

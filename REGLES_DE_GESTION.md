@@ -132,6 +132,9 @@ Durée effective = (Fin - Scan entrée) - durees_pauses_minutes
 ### Détail de la borne de fin
 1. Si `cloture_validee_at` est renseigné → utilise la date de clôture.
 2. Sinon, si `statut = terminee` → utilise `fin` (heure de fin planifiée).
+1. Si `heure_scan_sortie_professeur` est renseigné → utilise l'heure du scan de sortie.
+2. Sinon, si `cloture_validee_at` est renseigné → utilise la date de clôture (plafonné à l'heure de fin prévue `fin`).
+3. Sinon, si `statut = terminee` → utilise `fin` (heure de fin planifiée).
 3. Sinon (séance en cours) → utilise `now()`.
 
 ### Cas sans scan
@@ -228,6 +231,21 @@ Durée effective = (Fin - Scan entrée) - durees_pauses_minutes
 - Cherche le même créneau la semaine suivante (J+7, J+14, …, J+56 = 8 semaines max).
 - Même salle, même professeur, mêmes groupes, durée identique.
 - Si conflit sur tous les créneaux → aucun rattrapage créé (les heures restent visibles via `hp_restant`).
+
+---
+
+## 15. Contestation d'horaire
+
+- **Optionnel** : Un professeur peut contester la durée calculée par le système s'il estime qu'une erreur technique a eu lieu (ex: badge non détecté).
+- **Champs requis** :
+    - `duree_calculee_minutes` : Valeur du système au moment de la contestation.
+    - `duree_contestee_minutes` : Valeur revendiquée par le professeur.
+    - `motif` : Justification détaillée de l'anomalie.
+- **Workflow** :
+    1. Le professeur soumet la contestation (statut `en_attente`).
+    2. L'administrateur examine les logs et le motif.
+    3. L'administrateur approuve ou rejette avec une `admin_note`.
+    4. Si approuvée, les compteurs de la table `matiere_centre_annee` doivent être ajustés manuellement.
 
 ---
 

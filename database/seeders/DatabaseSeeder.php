@@ -311,42 +311,67 @@ class DatabaseSeeder extends Seeder
                 ]);
             }
 
-            // === SALLES ===
-            // 2 salles Gbégamey (cap 30 et 50) + 1 salle Akpakpa
+            // === SALLES (naming convention GASA : [étage]E[num]) ===
             $salleA = DB::table('salles')->insertGetId([
-                'nom'        => 'Salle 101',
-                'capacite'   => 30,
+                'nom'        => '1E1',
+                'capacite'   => 40,
                 'type'       => 'Salle de cours',
                 'centre_id'  => $cGbe,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
             $salleB = DB::table('salles')->insertGetId([
-                'nom'        => 'Amphi A',
-                'capacite'   => 50,
-                'type'       => 'Amphithéâtre',
+                'nom'        => '1E2',
+                'capacite'   => 40,
+                'type'       => 'Salle de cours',
                 'centre_id'  => $cGbe,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            foreach (['2E1', '2E2', '3E1', '3E2', '3E3'] as $nomSalle) {
+                DB::table('salles')->insert([
+                    'nom' => $nomSalle, 'capacite' => 40, 'type' => 'Salle de cours',
+                    'centre_id' => $cGbe, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
             $salleC = DB::table('salles')->insertGetId([
-                'nom'        => 'Salle A',
+                'nom'        => '1E1',
                 'capacite'   => 40,
                 'type'       => 'Salle de cours',
                 'centre_id'  => $cAkp,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            foreach (['1E2', '2E1', '2E2'] as $nomSalle) {
+                DB::table('salles')->insert([
+                    'nom' => $nomSalle, 'capacite' => 40, 'type' => 'Salle de cours',
+                    'centre_id' => $cAkp, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
 
-            // === EQUIPEMENTS (2 par salle = 6 total) ===
+            // === EQUIPEMENTS : tableau + scanner RFID pour chaque salle ===
             DB::table('equipements')->insert([
-                ['nom' => 'Tableau blanc',           'type_materiel' => 'Mobilier',        'numero_serie' => 'TB-GBE-101-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
-                ['nom' => 'Vidéoprojecteur',          'type_materiel' => 'Électronique',    'numero_serie' => 'VP-GBE-101-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
-                ['nom' => 'Micro HF',                 'type_materiel' => 'Électronique',    'numero_serie' => 'MIC-GBE-AMP-01',  'etat' => 'bon', 'quantite' => 2, 'salle_id' => $salleB, 'created_at' => $now, 'updated_at' => $now],
-                ['nom' => 'Système de sonorisation',  'type_materiel' => 'Électronique',    'numero_serie' => 'SON-GBE-AMP-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleB, 'created_at' => $now, 'updated_at' => $now],
-                ['nom' => 'Tableau noir',             'type_materiel' => 'Mobilier',        'numero_serie' => 'TN-AKP-A-01',     'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
-                ['nom' => 'Climatiseur',              'type_materiel' => 'Électroménager',  'numero_serie' => 'CLIM-AKP-A-01',   'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Tableau blanc',  'type_materiel' => 'Mobilier',     'numero_serie' => 'TB-GBE-1E1-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Vidéoprojecteur','type_materiel' => 'Électronique', 'numero_serie' => 'VP-GBE-1E1-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleA, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Tableau blanc',  'type_materiel' => 'Mobilier',     'numero_serie' => 'TB-GBE-1E2-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleB, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Tableau noir',   'type_materiel' => 'Mobilier',     'numero_serie' => 'TN-AKP-1E1-01',  'etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
+                ['nom' => 'Climatiseur',    'type_materiel' => 'Électroménager','numero_serie'=> 'CLIM-AKP-1E1-01','etat' => 'bon', 'quantite' => 1, 'salle_id' => $salleC, 'created_at' => $now, 'updated_at' => $now],
             ]);
+            $toutesLesSalles = DB::table('salles')->get();
+            foreach ($toutesLesSalles as $salle) {
+                $centreCode = ($salle->centre_id === $cGbe) ? 'GBE' : 'AKP';
+                $salleCode  = str_replace(['E', ' '], ['-', ''], $salle->nom);
+                DB::table('equipements')->insert([
+                    'nom'           => 'Scanner RFID',
+                    'type_materiel' => 'Scanner RFID',
+                    'numero_serie'  => "RFID-{$centreCode}-{$salleCode}-01",
+                    'etat'          => 'bon',
+                    'quantite'      => 1,
+                    'salle_id'      => $salle->id,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ]);
+            }
 
             // === MATIERE_CENTRE_ANNEE ===
             // Initialiser hp_restant=hp_initial et tpe_dynamique=tpe_initial pour chaque (matière × centre)
@@ -379,16 +404,15 @@ class DatabaseSeeder extends Seeder
             //   27/05 HP1-ALG prof1 salleA ✓ → ALG hp_restant: 6→3
             //   28/05 HP1-RES prof2 salleA ✓ → RES hp_restant: 6→3
             //   02/06 HP2-BDD prof1 salleA ✓ → BDD hp_restant: 3→0
-            //   03/06 HP2-ALG prof1 salleA ✗ ABSENT → ALG hp_restant: 3+3=6, tpe_dyn: 3-3=0
+            //   03/06 HP2-ALG prof1 salleA ✗ ABSENT → ALG hp_restant: inchangé (3), tpe_dyn: 3→0
             //   04/06 HP2-RES prof2 salleA ✓ → RES hp_restant: 3→0
             //   09/06 TPE-BDD prof1 salleB ✓ (BDD hp_restant=0 ✓)
-            //   10/06 HPratt-ALG prof1 salleB ✓ → ALG hp_restant: 6→3
+            //   10/06 HPratt-ALG prof1 salleB ✓ (rattrapage) → ALG hp_restant: 3→0
             //   11/06 TPE-RES prof2 salleA ✓ (RES hp_restant=0 ✓)
-            //   17/06 HPratt2-ALG prof1 salleB planifiée (dashboard)
             //
             // État final MCA Gbégamey :
             //   BDD → hp_restant=0, tpe_dynamique=3
-            //   ALG → hp_restant=3, tpe_dynamique=0  (TPE ALG non débloqué)
+            //   ALG → hp_restant=0, tpe_dynamique=0  (HP complets, TPE bloqué — pénalité absence)
             //   RES → hp_restant=0, tpe_dynamique=3
 
             // HP1-BDD — 26/05 présent
@@ -608,40 +632,19 @@ class DatabaseSeeder extends Seeder
                 'updated_at'             => $now,
             ]);
 
-            // HPratt2-ALG — 17/06 14:00 planifiée (ALG hp_restant=3 → 2e rattrapage nécessaire)
-            $seanceHPratt2ALG = DB::table('seances')->insertGetId([
-                'matiere_id'             => $mALG,
-                'salle_id'               => $salleB,
-                'professeur_id'          => $prof1,
-                'annee_scolaire_id'      => $a2526,
-                'debut'                  => '2026-06-17 14:00:00',
-                'fin'                    => '2026-06-17 17:00:00',
-                'type'                   => 'HP',
-                'statut'                 => 'planifiee',
-                'is_inter_centre'        => false,
-                'est_composition'        => false,
-                'heure_scan_professeur'  => null,
-                'heure_debut_pause'      => null,
-                'heure_fin_pause'        => null,
-                'durees_pauses_minutes'  => 0,
-                'nb_presents_valide'     => null,
-                'cloture_validee_at'     => null,
-                'cloture_validee_par'    => null,
-                'emploi_du_temps_id'     => null,
-                'created_at'             => $now,
-                'updated_at'             => $now,
-            ]);
 
             // Mise à jour matiere_centre_annee : état final après toutes les séances terminées
+            // hp_restant  = hp_initial  − Σ(heures scannées)
+            // tpe_dynamique = tpe_initial − Σ(heures absences HP)
             DB::table('matiere_centre_annee')
                 ->where('matiere_id', $mBDD)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
-                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);
+                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);  // 2×3h scannées → 0 restant ; 0 absence
             DB::table('matiere_centre_annee')
                 ->where('matiere_id', $mALG)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
-                ->update(['hp_restant' => 3, 'tpe_dynamique' => 0]);
+                ->update(['hp_restant' => 0, 'tpe_dynamique' => 0]);  // HP1+HPratt scannées → 0 restant ; 1 absence 3h → tpe=0
             DB::table('matiere_centre_annee')
                 ->where('matiere_id', $mRES)->where('centre_id', $cGbe)->where('annee_scolaire_id', $a2526)
-                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);
+                ->update(['hp_restant' => 0, 'tpe_dynamique' => 3]);  // 2×3h scannées → 0 restant ; 0 absence
 
             // === OPTION_SEANCE ===
             DB::table('option_seance')->insert([
@@ -654,7 +657,6 @@ class DatabaseSeeder extends Seeder
                 ['option_id' => $optSIL, 'seance_id' => $seanceTPEBDD],
                 ['option_id' => $optSIL, 'seance_id' => $seanceHPrattALG],
                 ['option_id' => $optSIL, 'seance_id' => $seanceTPERES],
-                ['option_id' => $optSIL, 'seance_id' => $seanceHPratt2ALG],
             ]);
 
             // === PRESENCES ===

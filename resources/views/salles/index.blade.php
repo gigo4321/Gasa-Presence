@@ -7,7 +7,7 @@
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="stat-card">
-            <span class="stat-icon">🚪</span>
+            <span class="stat-icon"><i class="bi bi-door-closed"></i></span>
             <div>
                 <div class="stat-value">{{ $salles->count() }}</div>
                 <div class="stat-label">Salles enregistrées</div>
@@ -16,7 +16,7 @@
     </div>
     <div class="col-md-4">
         <div class="stat-card" style="background:#e3f2fd;">
-            <span class="stat-icon">🖥️</span>
+            <span class="stat-icon"><i class="bi bi-display"></i></span>
             <div>
                 <div class="stat-value">{{ $salles->sum('equipements_count') }}</div>
                 <div class="stat-label">Équipements au total</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="col-md-4">
         <div class="stat-card" style="background:#e8f5e9;">
-            <span class="stat-icon">💺</span>
+            <span class="stat-icon"><i class="bi bi-people"></i></span>
             <div>
                 <div class="stat-value">{{ $salles->sum('capacite') }}</div>
                 <div class="stat-label">Places disponibles</div>
@@ -53,7 +53,7 @@
         <div class="d-flex align-items-center gap-3">
             <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
                  style="width:46px;height:46px;background:var(--beige);color:var(--fonce);font-size:20px;">
-                🚪
+                <i class="bi bi-door-closed"></i>
             </div>
             <div>
                 <div class="fw-bold" style="font-size:15px;color:var(--fonce)">{{ $salle->nom }}</div>
@@ -312,7 +312,7 @@
 
 @empty
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-    <div style="font-size:48px;margin-bottom:12px;">🚪</div>
+    <i class="bi bi-door-closed" style="font-size:48px;margin-bottom:12px;display:block;color:var(--marron);"></i>
     <div style="font-size:14px;">Aucune salle enregistrée pour ce centre.</div>
     @if(auth()->user()->peutGererCentre())
     <button class="btn mt-3 text-white rounded-3 px-4" style="background:var(--marron);"

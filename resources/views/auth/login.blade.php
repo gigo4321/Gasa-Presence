@@ -24,7 +24,7 @@
         </div>
         @if($errors->any())
         <div class="p-3 rounded-xl text-sm border-l-4" style="background:#fee2e2;border-color:#dc2626;color:#991b1b;">
-            ⚠ {{ $errors->first() }}
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ $errors->first() }}
         </div>
         @endif
         <form action="{{ route('login.post') }}" method="POST" class="space-y-4">

@@ -37,7 +37,7 @@ $hasMatieres = $filieres->contains(fn($f)=>$f->filiereOptions->contains(fn($o)=>
 
 @if(!$hasMatieres)
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-    <div style="font-size:48px;">📚</div>
+    <i class="bi bi-book" style="font-size:48px;color:#ccc;"></i>
     <p class="mt-3">Aucune matière dans le référentiel.</p>
     @admin<a href="{{ route('filieres.index') }}" class="btn text-white rounded-3 px-4 mt-2" style="background:var(--fonce);">Accéder au référentiel</a>@endadmin
 </div>

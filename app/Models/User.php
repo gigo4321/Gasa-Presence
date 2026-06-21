@@ -14,6 +14,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'grade',
         'email',
         'password',
         'role',
@@ -68,6 +69,11 @@ class User extends Authenticatable
     public function estProfesseur(): bool
     {
         return $this->role === 'ROLE_PROFESSEUR';
+    }
+
+    public function estActif(): bool
+    {
+        return (bool) $this->email_verified_at;
     }
 
     // Peut créer/modifier des ressources dans son centre

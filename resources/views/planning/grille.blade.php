@@ -398,7 +398,7 @@ MARDI;13:00;16:00;C++;AKPONNA;HP;;</pre>
 <div id="tab-liste" class="tab-pane {{ request('tab') === 'liste' ? '' : 'd-none' }}">
     @if($edts->isEmpty())
     <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-        <div style="font-size:40px;margin-bottom:12px;">📅</div>
+        <i class="bi bi-calendar-x" style="font-size:40px;margin-bottom:12px;display:block;color:#ccc;"></i>
         <p style="font-size:14px;">Aucun emploi du temps importé. Utilisez l'onglet <strong>Importer</strong>.</p>
     </div>
     @else
@@ -481,7 +481,7 @@ function showFileName(input) {
     const name = input.files[0]?.name || '';
     const display = document.getElementById('fileNameDisplay');
     if (display) {
-        display.textContent = name ? '📎 ' + name : '';
+        display.textContent = name ? name : '';
     }
 }
 </script>

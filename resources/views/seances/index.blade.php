@@ -144,7 +144,7 @@
                 </span>
                 @if($s->est_composition)
                 <span class="badge rounded-pill px-3" style="font-size:11px;background:#F0E7C0;color:#6B4E0A;border:1px solid #D8C898;">
-                    ✏ Composition
+                    <i class="bi bi-pencil-fill me-1"></i>Composition
                 </span>
                 @else
                 <span class="badge rounded-pill px-3" style="font-size:11px;background:{{ ['HP'=>'#EBF0F5','TPE'=>'#EDE8F3'][$s->type]??'#eee' }};color:{{ ['HP'=>'#2D4A6B','TPE'=>'#3F2A52'][$s->type]??'#333' }}">
@@ -155,10 +155,10 @@
                     {{ $s->statut }}
                 </span>
                 @if($s->is_inter_centre)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;">🌐 Inter-centres</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;"><i class="bi bi-globe2 me-1"></i>Inter-centres</span>
                 @endif
                 @if($enPause)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F2E9D8;color:#8B6914;">⏸ Pause jusqu'à {{ \Carbon\Carbon::parse($s->heure_fin_pause)->format('H:i') }}</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F2E9D8;color:#8B6914;"><i class="bi bi-pause-fill me-1"></i>Pause jusqu'à {{ \Carbon\Carbon::parse($s->heure_fin_pause)->format('H:i') }}</span>
                 @endif
             </div>
             <div class="fw-semibold mb-1" style="font-size:15px;color:var(--fonce)">{{ $s->matiere?->nom }}</div>
@@ -273,12 +273,11 @@
 {{-- Modal clôture de séance --}}
 @if($s->statut === 'terminee' && !$s->cloture_validee_at)
 @php
-    $clotEfMin  = ($s->type === 'HP' && $s->heure_scan_professeur)
-        ? max(0, (int)$s->heure_scan_professeur->diffInMinutes($s->fin) - ($s->durees_pauses_minutes ?? 0))
-        : (int)$s->debut->diffInMinutes($s->fin);
-    $clotEfH   = intdiv($clotEfMin, 60);
-    $clotEfRem = $clotEfMin % 60;
+    $clotEfMin    = $s->calculerDureeEffective() ?: (int)$s->debut->diffInMinutes($s->fin);
+    $clotEfH      = intdiv($clotEfMin, 60);
+    $clotEfRem    = $clotEfMin % 60;
     $clotPauseMin = (int)($s->durees_pauses_minutes ?? 0);
+    $clotSortie   = $s->heure_scan_sortie_professeur ?? $s->fin;
 @endphp
 <div class="modal fade" id="clotureModal{{ $s->id }}" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content rounded-4">
@@ -304,7 +303,11 @@
                 <small style="color:#5A6E8A;font-size:11px;">
                     <i class="bi bi-clock me-1"></i>
                     @if($s->heure_scan_professeur)
-                        Scan {{ $s->heure_scan_professeur->format('H:i') }} → {{ $s->fin->format('H:i') }}
+                        Scan entrée {{ $s->heure_scan_professeur->format('H:i') }}
+                        → sortie {{ $clotSortie->format('H:i') }}
+                        @if(!$s->heure_scan_sortie_professeur)
+                            <em style="color:#aaa;">(fin planifiée)</em>
+                        @endif
                         @if($clotPauseMin > 0)
                             &nbsp;·&nbsp; Pause : {{ $clotPauseMin }} min déduite(s)
                         @endif
@@ -345,7 +348,7 @@
 
 @empty
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-    <div style="font-size:40px;margin-bottom:12px;">📅</div>
+    <i class="bi bi-calendar-x" style="font-size:40px;margin-bottom:12px;display:block;color:#ccc;"></i>
     <div style="font-size:14px;">
         @if(auth()->user()->estProfesseur())
             Aucune séance prévue pour vous ce jour.
@@ -404,8 +407,12 @@
                         <label class="form-label fw-semibold" style="font-size:13px;">Professeur <span id="profRequired">*</span></label>
                         <select name="professeur_id" id="professeurSelect" class="form-select rounded-3" required>
                             <option value="">— Sélectionner —</option>
-                            @foreach($profs as $p)
-                            <option value="{{ $p->id }}">{{ $p->name }}</option>
+                            @foreach($tousProfs->groupBy('centre_id') as $cid => $profsGroupe)
+                            <optgroup label="{{ $profsGroupe->first()->centre?->nom ?? 'Sans centre' }}">
+                                @foreach($profsGroupe as $p)
+                                <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                @endforeach
+                            </optgroup>
                             @endforeach
                         </select>
                     </div>
@@ -423,19 +430,36 @@
                         <small class="text-muted" id="seanceFinPreview" style="font-size:11px;"></small>
                     </div>
                     <div class="col-12">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Options concernées * (cocher plusieurs = séance commune)</label>
-                        <div class="border rounded-3 p-3" style="max-height:160px;overflow-y:auto;">
-                            @foreach($options as $o)
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="option_ids[]"
-                                       value="{{ $o->id }}" id="opt{{ $o->id }}">
-                                <label class="form-check-label" for="opt{{ $o->id }}" style="font-size:13px;">
-                                    {{ $o->nom }} — Niv.{{ $o->niveau }} ({{ $o->filiere?->code }})
-                                </label>
+                        <label class="form-label fw-semibold" style="font-size:13px;">
+                            Groupes concernés *
+                            <span style="font-size:11px;font-weight:400;color:#888;">— cocher plusieurs groupes, y compris d'autres centres = séance inter-centres</span>
+                        </label>
+                        <div class="border rounded-3 p-3" style="max-height:200px;overflow-y:auto;">
+                            @forelse($toutesOptions->groupBy('centre_id') as $cid => $optsCentre)
+                            <div class="mb-2">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span style="font-size:11px;font-weight:700;color:var(--fonce);text-transform:uppercase;letter-spacing:.5px;">
+                                        {{ $optsCentre->first()->centre?->nom ?? "Centre #{$cid}" }}
+                                    </span>
+                                    @if($cid == $centreId)
+                                    <span class="badge rounded-pill" style="font-size:9px;background:#EBF0F5;color:#2D4A6B;padding:2px 6px;">Actuel</span>
+                                    @endif
+                                </div>
+                                @foreach($optsCentre as $o)
+                                <div class="form-check ms-2">
+                                    <input class="form-check-input" type="checkbox" name="option_ids[]"
+                                           value="{{ $o->id }}" id="opt{{ $o->id }}">
+                                    <label class="form-check-label" for="opt{{ $o->id }}" style="font-size:13px;">
+                                        {{ $o->nom }}
+                                    </label>
+                                </div>
+                                @endforeach
                             </div>
-                            @endforeach
+                            @empty
+                            <p class="text-muted mb-0" style="font-size:12px;">Aucun groupe disponible pour l'année en cours.</p>
+                            @endforelse
                         </div>
-                        <small class="text-muted">Cocher plusieurs options crée une séance commune (capacité vérifiée automatiquement).</small>
+                        <small class="text-muted">Groupes de plusieurs centres → séance inter-centres (badge Inter-centres affiché, scanner déverrouillé pour tous les groupes).</small>
                     </div>
                 </div>
             </div>

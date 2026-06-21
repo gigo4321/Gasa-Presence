@@ -31,22 +31,48 @@
 
 {{-- Stats --}}
 <div class="row g-3 mb-4">
-    <div class="col-md-3"><div class="stat-card"><span class="stat-icon">🎓</span><div><div class="stat-value">{{ $inscriptions->total() }}</div><div class="stat-label">Inscrits</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon">✅</span><div><div class="stat-value">{{ $inscriptions->where('statut','actif')->count() }}</div><div class="stat-label">Actifs</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#fff3e0;"><span class="stat-icon">⏸</span><div><div class="stat-value">{{ $inscriptions->where('statut','suspendu')->count() }}</div><div class="stat-label">Suspendus</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#e3f2fd;"><span class="stat-icon">🏆</span><div><div class="stat-value">{{ $inscriptions->where('statut','diplome')->count() }}</div><div class="stat-label">Diplômés</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card"><span class="stat-icon"><i class="bi bi-mortarboard"></i></span><div><div class="stat-value">{{ $inscriptions->total() }}</div><div class="stat-label">Inscrits</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon"><i class="bi bi-check-circle-fill"></i></span><div><div class="stat-value">{{ $inscriptions->where('statut','actif')->count() }}</div><div class="stat-label">Actifs</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card" style="background:#fff3e0;"><span class="stat-icon"><i class="bi bi-pause-circle"></i></span><div><div class="stat-value">{{ $inscriptions->where('statut','suspendu')->count() }}</div><div class="stat-label">Suspendus</div></div></div></div>
 </div>
+
+{{-- Filtre groupe actif --}}
+@if($optionActive)
+<div class="d-flex align-items-center gap-2 mb-3 p-3 rounded-3" style="background:#EBF0F5;border:1px solid #B5C5D8;">
+    <i class="bi bi-funnel-fill" style="color:#2D4A6B;"></i>
+    <span style="font-size:13px;color:#2D4A6B;font-weight:600;">
+        Groupe filtré : {{ $optionActive->nom }}
+        <span style="font-weight:400;">— {{ $optionActive->filiereOption?->nom }} · {{ $optionActive->niveau?->libelle }}</span>
+    </span>
+    <a href="{{ route('etudiants.index', ['centreId'=>$centreId,'annee_id'=>$annee?->id]) }}"
+       class="btn btn-sm rounded-3 ms-auto" style="font-size:12px;border:1px solid #B5C5D8;color:#2D4A6B;">
+        <i class="bi bi-x me-1"></i>Voir tous les groupes
+    </a>
+</div>
+@endif
 
 {{-- Recherche --}}
 <div class="bg-white rounded-4 p-3 border mb-3">
     <form method="GET" class="d-flex gap-2 flex-wrap">
         <input type="hidden" name="annee_id" value="{{ $annee?->id }}">
+        @if(request('option_id'))
+        <input type="hidden" name="option_id" value="{{ request('option_id') }}">
+        @endif
         <input type="text" name="q" value="{{ request('q') }}" class="form-control rounded-3 flex-grow-1" placeholder="Nom, prénom, matricule…">
+        @if(!request('option_id'))
+        <select name="option_id" class="form-select rounded-3" style="width:auto;">
+            <option value="">Tous les groupes</option>
+            @foreach($options as $o)
+            <option value="{{ $o->id }}" {{ request('option_id')==$o->id?'selected':'' }}>
+                {{ $o->filiereOption?->nom }} — {{ $o->niveau?->libelle }}
+            </option>
+            @endforeach
+        </select>
+        @endif
         <select name="statut" class="form-select rounded-3" style="width:auto;">
             <option value="">Tous statuts</option>
             <option value="actif" {{ request('statut')=='actif'?'selected':'' }}>Actifs</option>
             <option value="suspendu" {{ request('statut')=='suspendu'?'selected':'' }}>Suspendus</option>
-            <option value="diplome" {{ request('statut')=='diplome'?'selected':'' }}>Diplômés</option>
         </select>
         <button type="submit" class="btn text-white rounded-3 px-3" style="background:var(--marron);"><i class="bi bi-search"></i></button>
     </form>
@@ -56,7 +82,7 @@
 <div class="bg-white rounded-4 border overflow-hidden">
     <table class="table table-hover table-gasa mb-0">
         <thead><tr>
-            <th>Matricule</th><th>Nom & Prénom</th><th>Badge</th>
+            <th>Matricule</th><th>Nom & Prénom</th><th>Téléphone / Naissance</th><th>Badge</th>
             <th>Option / Niveau</th><th>Année</th><th>Statut</th><th>Actions</th>
         </tr></thead>
         <tbody>
@@ -74,6 +100,16 @@
             <td>
                 <div style="font-weight:600;font-size:13px;color:var(--fonce);">{{ $e->nom }} {{ $e->prenom }}</div>
                 <div style="font-size:11px;color:#aaa;">{{ $e->email }}</div>
+            </td>
+            <td>
+                @if($e->telephone)
+                <div style="font-size:12px;color:var(--fonce);">{{ $e->telephone }}</div>
+                @endif
+                @if($e->date_naissance)
+                <div style="font-size:11px;color:#aaa;">{{ $e->date_naissance->format('d/m/Y') }}</div>
+                @else
+                <span style="color:#aaa;font-size:12px;">—</span>
+                @endif
             </td>
             <td>
                 @if($e->badge_uid)<code style="font-size:11px;background:#f5f5f5;padding:2px 6px;border-radius:4px;">{{ $e->badge_uid }}</code>
@@ -168,7 +204,7 @@
         </div></div></div>
 
         @empty
-        <tr><td colspan="7" class="text-center py-5" style="color:#aaa;">Aucun étudiant inscrit pour cette période.</td></tr>
+        <tr><td colspan="8" class="text-center py-5" style="color:#aaa;">Aucun étudiant inscrit pour cette période.</td></tr>
         @endforelse
         </tbody>
     </table>
@@ -221,7 +257,7 @@
             <div class="p-3 rounded-3 mb-3" style="background:var(--beige);font-size:12px;color:var(--fonce);">
                 <i class="bi bi-info-circle me-1"></i>
                 Colonnes requises : <strong>matricule, nom, prenom, email</strong> (optionnel: telephone, badge_uid)<br>
-                <a href="{{ route('etudiants.modele') }}" class="fw-semibold" style="color:var(--fonce);">📥 Télécharger le modèle CSV</a>
+                <a href="{{ route('etudiants.modele') }}" class="fw-semibold" style="color:var(--fonce);"><i class="bi bi-download me-1"></i>Télécharger le modèle CSV</a>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-semibold" style="font-size:13px;">Groupe cible *</label>

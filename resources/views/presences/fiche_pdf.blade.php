@@ -43,7 +43,7 @@
 <body>
 
 <div class="no-print">
-    <button onclick="window.print()">🖨️ Imprimer / Sauvegarder en PDF</button>
+    <button onclick="window.print()">Imprimer / Sauvegarder en PDF</button>
 </div>
 
 {{-- EN-TÊTE --}}
@@ -94,11 +94,28 @@
             <label>Nom complet</label>
             <span>{{ $seance->professeur?->name }}</span>
         </div>
+        @if($seance->professeur?->grade)
+        <div class="info-item">
+            <label>Grade / Titre</label>
+            <span style="font-style:italic;color:#8D6E63;">{{ $seance->professeur->grade }}</span>
+        </div>
+        @endif
         <div class="info-item">
             <label>Scan d'entrée</label>
             <span style="color:{{ $seance->heure_scan_professeur?'#2e7d32':'#c62828' }}">
                 {{ $seance->heure_scan_professeur?->format('H:i') ?? 'Non badgé' }}
             </span>
+        </div>
+        <div class="info-item">
+            <label>Fin / Scan sortie</label>
+            @if($seance->heure_scan_sortie_professeur)
+            <span style="color:#1a1a1a;">{{ $seance->heure_scan_sortie_professeur->format('H:i') }}</span>
+            @elseif($seance->heure_scan_professeur)
+            <span style="color:#1565c0;">{{ $seance->fin->format('H:i') }}</span>
+            <span style="font-size:9px;color:#aaa;"> (fin planifiée)</span>
+            @else
+            <span style="color:#aaa;">—</span>
+            @endif
         </div>
         @if(($seance->durees_pauses_minutes ?? 0) > 0)
         <div class="info-item">
@@ -122,6 +139,66 @@
     </div>
 </div>
 
+{{-- CLÔTURE & CONTESTATION --}}
+@if($seance->cloture_validee_at)
+@php
+    $pdfEstValideAdmin = $validateur && (int)$validateur->id !== (int)$seance->professeur_id;
+    $pdfDmEf = $seance->calculerDureeEffective();
+@endphp
+<div class="section" style="border-color:#A0BAA0;background:#EDF2EC;">
+    <div class="section-title" style="color:#2A4528;">Clôture validée</div>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Professeur du cours</label>
+            <span>{{ $seance->professeur?->name }}</span>
+        </div>
+        <div class="info-item">
+            <label>Validé le</label>
+            <span>{{ $seance->cloture_validee_at->format('d/m/Y à H:i') }}</span>
+        </div>
+        <div class="info-item">
+            <label>Présents confirmés</label>
+            <span style="font-size:15px;color:#2A4528;"><strong>{{ $seance->nb_presents_valide }}</strong></span>
+        </div>
+        <div class="info-item">
+            <label>Durée effective</label>
+            <span style="color:#2A4528;">
+                {{ floor($pdfDmEf/60) }}h{{ str_pad($pdfDmEf%60,2,'0',STR_PAD_LEFT) }}
+            </span>
+        </div>
+    </div>
+    @if($pdfEstValideAdmin)
+    <div style="margin-top:8px;font-size:11px;color:#78350F;background:#FEF9C3;padding:4px 8px;border-radius:4px;">
+        Validation effectuée par l'administrateur {{ $validateur->name }} à la place du professeur.
+    </div>
+    @endif
+
+    @if($contestation)
+    @php
+        $pdfDmCalc    = $contestation->duree_calculee_minutes;
+        $pdfDmContest = $contestation->duree_contestee_minutes;
+        $pdfCcBg = match($contestation->statut) { 'acceptee' => '#e8f5e9', 'refusee' => '#ffebee', default => '#fffde7' };
+        $pdfCcCl = match($contestation->statut) { 'acceptee' => '#2e7d32', 'refusee' => '#c62828', default => '#e65100' };
+        $pdfCcLabel = match($contestation->statut) { 'acceptee' => 'Acceptée', 'refusee' => 'Refusée', default => 'En attente' };
+    @endphp
+    <div style="margin-top:10px;padding:8px 10px;border-radius:4px;background:{{ $pdfCcBg }};border:1px solid {{ $pdfCcCl }};">
+        <div style="font-weight:700;font-size:12px;color:{{ $pdfCcCl }};margin-bottom:5px;">
+            Contestation horaire du professeur
+            <span style="font-weight:400;font-size:10px;padding:1px 6px;background:{{ $pdfCcCl }};color:#fff;border-radius:10px;margin-left:6px;">{{ $pdfCcLabel }}</span>
+        </div>
+        <div style="font-size:11px;color:{{ $pdfCcCl }};margin-bottom:4px;">
+            Durée système : <strong>{{ floor($pdfDmCalc/60) }}h{{ str_pad($pdfDmCalc%60,2,'0',STR_PAD_LEFT) }}</strong>
+            &nbsp;→&nbsp;
+            Durée réclamée : <strong>{{ floor($pdfDmContest/60) }}h{{ str_pad($pdfDmContest%60,2,'0',STR_PAD_LEFT) }}</strong>
+        </div>
+        <div style="font-size:11px;color:{{ $pdfCcCl }};font-style:italic;">
+            « {{ $contestation->motif }} »
+        </div>
+    </div>
+    @endif
+</div>
+@endif
+
 {{-- OPTIONS --}}
 <div class="section">
     <div class="section-title">Options & Niveaux concernés</div>
@@ -132,6 +209,44 @@
     </div>
     @endforeach
 </div>
+
+{{-- NOTIFICATION VASES COMMUNICANTS (PDF) --}}
+@if($seance->type === 'HP' && !$seance->heure_scan_professeur && $seance->statut === 'terminee' && $nbPresents > 0)
+@php
+    $pdfHeuresAbsence = (int) ceil($seance->duree_heures);
+    $pdfTpeAvant      = $quota ? $quota->tpe_dynamique + $pdfHeuresAbsence : null;
+@endphp
+<div style="margin-bottom:16px;padding:12px 16px;border:2px solid #F59E0B;border-radius:6px;background:#FFFBEB;">
+    <div style="font-weight:700;color:#78350F;font-size:13px;margin-bottom:6px;">
+        Professeur absent — Vases communicants appliqués
+    </div>
+    <div style="font-size:11px;color:#92400E;margin-bottom:10px;">
+        {{ $seance->professeur?->name }} n'a pas badgé. Les <strong>{{ $pdfHeuresAbsence }}h HP</strong>
+        sont maintenues au quota et une séance de rattrapage a été planifiée.
+    </div>
+    <div style="display:flex;gap:10px;">
+        <div style="flex:1;border:1px solid #FDE68A;border-radius:4px;padding:8px;text-align:center;background:#FEF3C7;">
+            <div style="font-size:9px;color:#78350F;text-transform:uppercase;margin-bottom:3px;">Étudiants présents</div>
+            <div style="font-size:22px;font-weight:700;color:#92400E;">{{ $nbPresents }}</div>
+            <div style="font-size:10px;color:#A16207;">sur {{ $totalInscrits }} inscrit(s)</div>
+        </div>
+        <div style="flex:1;border:1px solid #B5C5D8;border-radius:4px;padding:8px;text-align:center;background:#EBF0F5;">
+            <div style="font-size:9px;color:#2D4A6B;text-transform:uppercase;margin-bottom:3px;">HP restantes</div>
+            <div style="font-size:22px;font-weight:700;color:#2D4A6B;">{{ $profHpRestant }}h</div>
+            <div style="font-size:10px;color:#5A6E8A;">inchangées · rattrapage requis</div>
+        </div>
+        @if($quota && $pdfTpeAvant !== null)
+        <div style="flex:1;border:1px solid #FECACA;border-radius:4px;padding:8px;text-align:center;background:#FEE2E2;">
+            <div style="font-size:9px;color:#991B1B;text-transform:uppercase;margin-bottom:3px;">TPE déduit (−{{ $pdfHeuresAbsence }}h)</div>
+            <div style="font-size:16px;font-weight:700;color:#991B1B;">
+                {{ $pdfTpeAvant }}h → {{ $quota->tpe_dynamique }}h
+            </div>
+            <div style="font-size:10px;color:#B91C1C;">sur {{ $tpeInitial }}h prévues</div>
+        </div>
+        @endif
+    </div>
+</div>
+@endif
 
 {{-- KPI --}}
 <div class="kpi-row">
@@ -202,11 +317,24 @@
 {{-- SIGNATURES --}}
 <div class="footer">
     <div>
+        @if($seance->cloture_validee_at)
+        <div class="signature-box" style="background:#f9fff9;border-color:#4caf50;padding-top:8px;">
+            <div style="font-weight:700;font-size:11px;color:#2e7d32;">Validé le {{ $seance->cloture_validee_at->format('d/m/Y') }}</div>
+            <div style="font-size:10px;color:#2e7d32;">à {{ $seance->cloture_validee_at->format('H:i') }}</div>
+        </div>
+        @else
         <div class="signature-box">Signature du Professeur</div>
-        <div style="margin-top:4px;text-align:center;font-size:10px;">{{ $seance->professeur?->name }}</div>
+        @endif
+        <div style="margin-top:4px;text-align:center;font-size:10px;">
+            {{ $seance->professeur?->name }}
+            @if($seance->professeur?->grade)
+            <br><em style="color:#8D6E63;">{{ $seance->professeur->grade }}</em>
+            @endif
+        </div>
     </div>
     <div>
         <div class="signature-box">Signature du Responsable</div>
+        <div style="margin-top:4px;text-align:center;font-size:10px;">{{ $seance->salle?->centre?->nom }}</div>
     </div>
     <div style="text-align:right;font-size:10px;color:#aaa;max-width:200px;">
         UATM GASA-FORMATION<br>

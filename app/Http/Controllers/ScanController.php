@@ -48,13 +48,14 @@ class ScanController extends Controller
         return response()->json(['etudiants' => $rows]);
     }
 
-    // ── API : séance en cours / à venir dans une salle ───────────────────────
+    // ── API : séance en cours / à venir (ou récemment terminée) dans une salle ──
     public function seanceCourante($salleId)
     {
         $salle = Salle::findOrFail($salleId);
         $user  = Auth::user();
         if (!$user->estAdmin() && $user->centre_id != $salle->centre_id) abort(403);
 
+        // 1. Séance active ou imminente (dans l'heure)
         $seance = Seance::with(['matiere', 'professeur', 'options'])
             ->where('salle_id', $salleId)
             ->whereIn('statut', ['en_cours', 'planifiee'])
@@ -63,24 +64,38 @@ class ScanController extends Controller
             ->orderBy('debut')
             ->first();
 
-        if (!$seance) return response()->json(['seance' => null]);
+        // 2. Fallback : séance terminée il y a moins de 4h (scan sortie prof encore possible)
+        if (!$seance) {
+            $seance = Seance::with(['matiere', 'professeur', 'options'])
+                ->where('salle_id', $salleId)
+                ->where('statut', 'terminee')
+                ->where('fin', '>=', now()->subHours(4))
+                ->orderByDesc('debut')
+                ->first();
+        }
+
+        if (!$seance) return response()->json(['seance' => null, 'salle' => $salle->nom]);
 
         $pauseActive = $seance->heure_fin_pause && now()->lt($seance->heure_fin_pause);
 
         return response()->json([
             'seance' => [
-                'id'           => $seance->id,
-                'statut'       => $seance->statut,
-                'type'         => $seance->type,
-                'debut'        => $seance->debut->format('H:i'),
-                'fin'          => $seance->fin->format('H:i'),
-                'matiere_code' => $seance->matiere->code,
-                'matiere_nom'  => $seance->matiere->nom,
-                'professeur'   => $seance->professeur?->name ?? 'Séance TPE (autonome)',
-                'pause_active' => $pauseActive,
-                'pause_fin'    => $pauseActive ? $seance->heure_fin_pause->format('H:i') : null,
-                'groupes'      => $seance->options->map(fn($o) => ['id' => $o->id, 'nom' => $o->nom]),
+                'id'                         => $seance->id,
+                'statut'                     => $seance->statut,
+                'type'                       => $seance->type,
+                'debut'                      => $seance->debut->format('H:i'),
+                'fin'                        => $seance->fin->format('H:i'),
+                'matiere_code'               => $seance->matiere->code,
+                'matiere_nom'                => $seance->matiere->nom,
+                'professeur'                 => $seance->professeur?->name ?? 'Séance TPE (autonome)',
+                'pause_active'               => $pauseActive,
+                'pause_fin'                  => $pauseActive ? $seance->heure_fin_pause->format('H:i') : null,
+                'groupes'                    => $seance->options->map(fn($o) => ['id' => $o->id, 'nom' => $o->nom]),
+                'heure_scan_entree'          => $seance->heure_scan_professeur?->format('H:i'),
+                'heure_scan_sortie'          => $seance->heure_scan_sortie_professeur?->format('H:i'),
+                'salle_nom'                  => $salle->nom,
             ],
+            'salle' => $salle->nom,
         ]);
     }
 
@@ -127,15 +142,25 @@ class ScanController extends Controller
             ]);
         }
 
-        // L'étudiant appartient-il à ce centre ?
+        // L'étudiant appartient-il à ce centre (ou à une séance inter-centres dans cette salle) ?
         $optionCentreId = DB::table('options')->where('id', $inscription->option_id)->value('centre_id');
         if ($optionCentreId != $salle->centre_id) {
-            return response()->json([
-                'autorise' => false,
-                'statut'   => 'mauvais_centre',
-                'message'  => "{$etudiant->nom} {$etudiant->prenom} n'est pas inscrit dans ce centre.",
-                'couleur'  => 'rouge',
-            ]);
+            $interCentreAutorise = Seance::where('salle_id', $salle->id)
+                ->where('is_inter_centre', true)
+                ->whereIn('statut', ['en_cours', 'planifiee'])
+                ->whereHas('options', fn($q) => $q->where('options.id', $inscription->option_id))
+                ->where('debut', '<=', now()->addHour())
+                ->where('fin', '>=', now())
+                ->exists();
+
+            if (!$interCentreAutorise) {
+                return response()->json([
+                    'autorise' => false,
+                    'statut'   => 'mauvais_centre',
+                    'message'  => "{$etudiant->nom} {$etudiant->prenom} n'est pas inscrit dans ce centre.",
+                    'couleur'  => 'rouge',
+                ]);
+            }
         }
 
         // Séance pour le groupe de l'étudiant dans cette salle
@@ -162,6 +187,19 @@ class ScanController extends Controller
 
         // Sortie : toujours autorisée pour tout le staff
         if ($mode === 'sortie') {
+            // Pour un professeur : enregistrer l'heure du dernier scan comme heure de sortie
+            if ($user->estProfesseur()) {
+                $seanceActive = Seance::where('salle_id', $salle->id)
+                    ->where('professeur_id', $user->id)
+                    ->where('type', 'HP')
+                    ->whereNotNull('heure_scan_professeur')
+                    ->where('fin', '>=', now()->subHours(4))
+                    ->orderByDesc('debut')
+                    ->first();
+                if ($seanceActive) {
+                    $seanceActive->update(['heure_scan_sortie_professeur' => now()]);
+                }
+            }
             return response()->json([
                 'autorise' => true,
                 'statut'   => 'sortie_ok',
@@ -226,30 +264,10 @@ class ScanController extends Controller
             ]);
         }
 
-        // Vérification fenêtre temporelle
-        // diffMinutes > 0 : le cours a commencé il y a X minutes ; < 0 : il commence dans X minutes
-        $diffMinutes = (now()->timestamp - $seance->debut->timestamp) / 60;
-
-        if ($diffMinutes > 15) {
-            return response()->json([
-                'autorise' => false,
-                'statut'   => 'retard_bloque',
-                'message'  => "Entrée refusée — {$nom} : retard de " . (int) $diffMinutes
-                              . " min (limite 15 min après " . $seance->debut->format('H:i') . ").",
-                'couleur'  => 'rouge',
-            ]);
-        }
-
-        // Blocage pause prof
-        if ($seance->heure_fin_pause && now()->lt($seance->heure_fin_pause)) {
-            return response()->json([
-                'autorise' => false,
-                'statut'   => 'pause_prof',
-                'message'  => 'Cours en pause. Reprise à ' . $seance->heure_fin_pause->format('H:i') . '.',
-                'couleur'  => 'orange',
-            ]);
-        }
-
+        // ── Ré-entrée après sortie temporaire (priorité sur retard et pause) ──
+        // Un étudiant déjà présent et revenant de sortie temporaire n'est pas
+        // concerné par la fenêtre de retard à l'entrée : seule la durée d'absence
+        // (≤ 15 min) compte.
         $presence = Presence::where('seance_id', $seance->id)
             ->where('inscription_id', $inscription->id)
             ->first();
@@ -283,6 +301,30 @@ class ScanController extends Controller
                 'autorise' => true,
                 'statut'   => 'deja_present',
                 'message'  => "{$nom} est déjà enregistré présent.",
+                'couleur'  => 'orange',
+            ]);
+        }
+
+        // ── Première entrée : vérification du retard ─────────────────────────
+        // diffMinutes > 0 : le cours a commencé il y a X minutes
+        $diffMinutes = (now()->timestamp - $seance->debut->timestamp) / 60;
+
+        if ($diffMinutes > 15) {
+            return response()->json([
+                'autorise' => false,
+                'statut'   => 'retard_bloque',
+                'message'  => "Entrée refusée — {$nom} : retard de " . (int) $diffMinutes
+                              . " min (limite 15 min après " . $seance->debut->format('H:i') . ").",
+                'couleur'  => 'rouge',
+            ]);
+        }
+
+        // Blocage pause prof
+        if ($seance->heure_fin_pause && now()->lt($seance->heure_fin_pause)) {
+            return response()->json([
+                'autorise' => false,
+                'statut'   => 'pause_prof',
+                'message'  => 'Cours en pause. Reprise à ' . $seance->heure_fin_pause->format('H:i') . '.',
                 'couleur'  => 'orange',
             ]);
         }

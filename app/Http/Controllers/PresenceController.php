@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-use App\Models\{Seance, AnneeScolaire, Centre, Filiere, Matiere, MatiereCentreAnnee};
+use App\Models\{Seance, AnneeScolaire, Centre, Filiere, Matiere, MatiereCentreAnnee, ContestationHoraire};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -51,20 +51,29 @@ class PresenceController extends Controller {
                 ->get()
             : collect();
 
-        $profHpFait    = round($profSeancesTerminees->where('type', 'HP')->sum('duree_heures'), 1);
-        $profTpeFait   = 0; // Les TPE ne sont pas comptabilisés sur le professeur
-        $profNbSeances = $profSeancesTerminees->where('type', 'HP')->count();
+        // Seules les séances avec scan professeur comptent comme "effectuées".
+        // Une séance où le professeur est absent reste dans les heures dues —
+        // la sommer ici ferait apparaître hp_restant = 0 à tort.
+        $seancesScannees = $profSeancesTerminees->where('type', 'HP')
+            ->filter(fn($s) => $s->heure_scan_professeur !== null);
+
+        $profHpFait    = round($seancesScannees->sum('duree_heures'), 1);
+        $profTpeFait   = 0;
+        $profNbSeances = $seancesScannees->count();
 
         $hpInitial  = $seance->matiere->hp_initial ?? 0;
         $tpeInitial = $seance->matiere->tpe_initial ?? 0;
 
         $profHpRestant  = max(0, round($hpInitial - $profHpFait, 1));
-        $profTpeRestant = 0; // non pertinent : les TPE ne comptent pas pour le professeur
+        $profTpeRestant = 0;
 
-        // Durée de la séance actuelle incluse
         $dureeActuelle = round($seance->duree_heures, 1);
-        $estDerniereHP  = $seance->type === 'HP' && ($profHpFait + $dureeActuelle) >= $hpInitial && $hpInitial > 0;
-        $estDerniereTPE = false; // TPE pas comptabilisé sur le professeur
+        // "Dernière HP" : uniquement si le prof a badgé cette séance et que le quota est atteint
+        $estDerniereHP  = $seance->type === 'HP'
+            && $seance->heure_scan_professeur !== null
+            && $profHpFait >= $hpInitial
+            && $hpInitial > 0;
+        $estDerniereTPE = false;
 
         // Quota centre/matière/année (vases communicants)
         $centreId = $seance->salle->centre_id ?? null;
@@ -74,19 +83,26 @@ class PresenceController extends Controller {
             ->first() : null;
 
         // ── KPIs présence ────────────────────────────────────────────────────
+        // Compter depuis les fiches de présence (état figé au moment de la séance).
+        // Compter depuis les inscriptions courantes provoquerait des écarts si des
+        // étudiants ont été ajoutés ou retirés après la tenue de la séance.
+        $totalInscrits  = $seance->presences->count();
         $nbPresents     = $seance->presences->where('statut', 'present')->count();
         $nbAbsents      = $seance->presences->where('statut', 'absent')->count();
         $nbInsuffisants = $seance->presences->where('statut', 'presence_insuffisante')->count();
-        $totalInscrits  = $seance->options->sum(fn($o) => $o->inscriptions()->where('statut', 'actif')->count());
 
         $dureeEffectiveMinutes = $seance->calculerDureeEffective();
+
+        $contestation = ContestationHoraire::where('seance_id', $seance->id)
+            ->with('professeur')
+            ->first();
 
         return view('presences.fiche', compact(
             'seance', 'nbPresents', 'nbAbsents', 'nbInsuffisants', 'totalInscrits',
             'profSeancesTerminees', 'profHpFait', 'profTpeFait', 'profNbSeances',
             'hpInitial', 'tpeInitial', 'profHpRestant', 'profTpeRestant',
             'quota', 'estDerniereHP', 'estDerniereTPE', 'dureeActuelle',
-            'dureeEffectiveMinutes'
+            'dureeEffectiveMinutes', 'contestation'
         ));
     }
 
@@ -94,11 +110,42 @@ class PresenceController extends Controller {
         $user = Auth::user();
         if (!$user->estAdmin() && $seance->salle?->centre_id != $user->centre_id) abort(403);
         $seance->load(['matiere.niveau.filiereOption.filiere','salle.centre','professeur','options.filiereOption','options.niveau','presences.inscription.etudiant','presences.inscription.option.niveau','presences.sortiesTemporaires']);
-        $nbPresents    = $seance->presences->where('statut','present')->count();
-        $nbAbsents     = $seance->presences->where('statut','absent')->count();
-        $nbInsuffisants= $seance->presences->where('statut','presence_insuffisante')->count();
-        $totalInscrits = $seance->options->sum(fn($o)=>$o->inscriptions()->where('statut','actif')->count());
-        return response(view('presences.fiche_pdf',compact('seance','nbPresents','nbAbsents','nbInsuffisants','totalInscrits'))->render())->header('Content-Type','text/html');
+        $totalInscrits  = $seance->presences->count();
+        $nbPresents     = $seance->presences->where('statut','present')->count();
+        $nbAbsents      = $seance->presences->where('statut','absent')->count();
+        $nbInsuffisants = $seance->presences->where('statut','presence_insuffisante')->count();
+
+        $centreId = $seance->salle->centre_id ?? null;
+        $quota    = $centreId ? MatiereCentreAnnee::where('matiere_id', $seance->matiere_id)
+            ->where('centre_id', $centreId)
+            ->where('annee_scolaire_id', $seance->annee_scolaire_id)
+            ->first() : null;
+        $tpeInitial  = $seance->matiere->tpe_initial ?? 0;
+        $hpInitial   = $seance->matiere->hp_initial  ?? 0;
+        // Uniquement les séances avec scan (absences exclues du cumul)
+        $profHpFait  = $seance->professeur_id
+            ? round(Seance::where('professeur_id', $seance->professeur_id)
+                ->where('matiere_id', $seance->matiere_id)
+                ->where('statut', 'terminee')
+                ->where('annee_scolaire_id', $seance->annee_scolaire_id)
+                ->where('type', 'HP')
+                ->whereNotNull('heure_scan_professeur')
+                ->sum('duree_heures'), 1)
+            : 0;
+        $profHpRestant = max(0, round($hpInitial - $profHpFait, 1));
+
+        $contestation = ContestationHoraire::where('seance_id', $seance->id)
+            ->with('professeur')
+            ->first();
+
+        $validateur = $seance->cloture_validee_par
+            ? \App\Models\User::find($seance->cloture_validee_par)
+            : null;
+
+        return response(view('presences.fiche_pdf', compact(
+            'seance', 'nbPresents', 'nbAbsents', 'nbInsuffisants', 'totalInscrits',
+            'quota', 'tpeInitial', 'profHpRestant', 'contestation', 'validateur'
+        ))->render())->header('Content-Type', 'text/html');
     }
 
     public function annees() {

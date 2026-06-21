@@ -122,7 +122,7 @@
                     {{ $seance->matiere?->nom }}
                 </span>
                 @if($seance->is_inter_centre)
-                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;">🌐 Inter-centres</span>
+                <span class="badge rounded-pill px-2" style="font-size:10px;background:#F3EAE7;color:#7A3D28;"><i class="bi bi-globe2 me-1"></i>Inter-centres</span>
                 @endif
             </div>
             {{-- Infos --}}
@@ -161,7 +161,7 @@
     </div>
     @empty
     <div class="p-5 text-center" style="color:#aaa;">
-        <div style="font-size:40px;margin-bottom:12px;">📋</div>
+        <i class="bi bi-clipboard-x" style="font-size:40px;margin-bottom:12px;display:block;color:#ccc;"></i>
         <p>Aucune séance terminée ne correspond aux filtres.</p>
     </div>
     @endforelse

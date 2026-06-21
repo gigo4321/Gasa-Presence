@@ -34,7 +34,7 @@
             </div>
             @empty
             <div class="p-5 text-center" style="color:#aaa;">
-                <div style="font-size:36px;margin-bottom:12px;">📅</div>
+                <i class="bi bi-calendar-x" style="font-size:36px;margin-bottom:12px;display:block;color:#ccc;"></i>
                 Aucune année scolaire configurée.
             </div>
             @endforelse

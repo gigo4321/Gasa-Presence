@@ -4,18 +4,18 @@
 @section('content')
 
 <div class="row g-3 mb-5">
-    <div class="col-md-3">
-        <div class="stat-card"><span class="stat-icon">🏢</span>
+    <div class="col-md-4">
+        <div class="stat-card"><span class="stat-icon"><i class="bi bi-building"></i></span>
             <div><div class="stat-value">{{ $stats['nb_centres'] }}</div><div class="stat-label">Centres</div></div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card" style="background:#e3f2fd;"><span class="stat-icon">🎓</span>
+    <div class="col-md-4">
+        <div class="stat-card" style="background:#e3f2fd;"><span class="stat-icon"><i class="bi bi-people-fill"></i></span>
             <div><div class="stat-value">{{ $stats['total_etudiants'] }}</div><div class="stat-label">Étudiants actifs</div></div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon">📅</span>
+    <div class="col-md-4">
+        <div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon"><i class="bi bi-calendar-event"></i></span>
             <div><div class="stat-value">{{ $stats['seances_aujourd_hui'] }}</div><div class="stat-label">Séances aujourd'hui</div></div>
         </div>
     </div>

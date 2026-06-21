@@ -52,10 +52,10 @@
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3"><div class="stat-card"><span class="stat-icon">🎓</span><div><div class="stat-value">{{ $filieres->where('archive',false)->count() }}</div><div class="stat-label">Filières actives</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#e3f2fd;"><span class="stat-icon">📂</span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->where('archive',false)->count()) }}</div><div class="stat-label">Options actives</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon">📊</span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->sum(fn($o)=>$o->niveaux->where('archive',false)->count())) }}</div><div class="stat-label">Niveaux actifs</div></div></div></div>
-    <div class="col-md-3"><div class="stat-card" style="background:#f3e5f5;"><span class="stat-icon">📚</span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->sum(fn($o)=>$o->niveaux->sum(fn($n)=>$n->matieres->where('archive',false)->count()))) }}</div><div class="stat-label">Matières actives</div></div></div></div>
+    <div class="col-md-3"><div class="stat-card"><span class="stat-icon"><i class="bi bi-diagram-3"></i></span><div><div class="stat-value">{{ $filieres->where('archive',false)->count() }}</div><div class="stat-label">Filières actives</div></div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#e3f2fd;"><span class="stat-icon"><i class="bi bi-folder2-open"></i></span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->where('archive',false)->count()) }}</div><div class="stat-label">Options actives</div></div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#e8f5e9;"><span class="stat-icon"><i class="bi bi-layers"></i></span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->sum(fn($o)=>$o->niveaux->where('archive',false)->count())) }}</div><div class="stat-label">Niveaux actifs</div></div></div></div>
+    <div class="col-md-3"><div class="stat-card" style="background:#f3e5f5;"><span class="stat-icon"><i class="bi bi-book"></i></span><div><div class="stat-value">{{ $filieres->sum(fn($f)=>$f->filiereOptions->sum(fn($o)=>$o->niveaux->sum(fn($n)=>$n->matieres->where('archive',false)->count()))) }}</div><div class="stat-label">Matières actives</div></div></div></div>
 </div>
 
 @forelse($filieres as $filiere)
@@ -310,7 +310,7 @@
 </div>
 @empty
 <div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-    <div style="font-size:48px;margin-bottom:16px;">🎓</div>
+    <i class="bi bi-diagram-3" style="font-size:48px;margin-bottom:16px;display:block;color:var(--marron);"></i>
     <p>Aucune filière. Commencez par créer une filière.</p>
     <button class="btn text-white rounded-3 px-4 mt-2" style="background:var(--fonce);" data-bs-toggle="modal" data-bs-target="#modalFiliere">Créer la première filière</button>
 </div>

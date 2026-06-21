@@ -22,26 +22,26 @@
 </div>
 @endif
 <div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="stat-card"><span class="stat-icon">🎓</span><div><div class="stat-value">{{ $nbInscrits }}</div><div class="stat-label">Inscrits actifs</div></div></div></div>
-    <div class="col-md-4"><div class="stat-card" style="background:#EBF0F5;"><span class="stat-icon">📅</span><div><div class="stat-value">{{ $seancesAujourdhui->count() }}</div><div class="stat-label">Séances aujourd'hui</div></div></div></div>
-    <div class="col-md-4"><div class="stat-card" style="background:#EBF0EA;"><span class="stat-icon">▶️</span><div><div class="stat-value">{{ $seancesEnCours }}</div><div class="stat-label">En cours</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card"><span class="stat-icon"><i class="bi bi-people-fill"></i></span><div><div class="stat-value">{{ $nbInscrits }}</div><div class="stat-label">Inscrits actifs</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card" style="background:#EBF0F5;"><span class="stat-icon"><i class="bi bi-calendar-event"></i></span><div><div class="stat-value">{{ $seancesAujourdhui->count() }}</div><div class="stat-label">Séances aujourd'hui</div></div></div></div>
+    <div class="col-md-4"><div class="stat-card" style="background:#EBF0EA;"><span class="stat-icon"><i class="bi bi-play-fill"></i></span><div><div class="stat-value">{{ $seancesEnCours }}</div><div class="stat-label">En cours</div></div></div></div>
 </div>
 <div class="row g-3 mb-3">
     <div class="col-4">
         <div class="stat-card">
-            <span class="stat-icon">📋</span>
+            <span class="stat-icon"><i class="bi bi-collection"></i></span>
             <div><div class="stat-value">{{ $nbGroupes }}</div><div class="stat-label">Groupes actifs</div></div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card" style="background:#EDE8F3;">
-            <span class="stat-icon">👨‍🏫</span>
+            <span class="stat-icon"><i class="bi bi-person-workspace"></i></span>
             <div><div class="stat-value">{{ $nbProfesseurs }}</div><div class="stat-label">Professeurs</div></div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card" style="background:#E8EEF5;">
-            <span class="stat-icon">📅</span>
+            <span class="stat-icon"><i class="bi bi-calendar-week"></i></span>
             <div><div class="stat-value">{{ $nbSeancesSemaine }}</div><div class="stat-label">Séances cette semaine</div></div>
         </div>
     </div>

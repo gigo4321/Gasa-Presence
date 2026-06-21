@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription};
+use App\Models\{Seance, Matiere, Salle, Option, MatiereCentreAnnee, Centre, User, Presence, AnneeScolaire, Inscription, ContestationHoraire};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -156,14 +156,19 @@ class SeanceController extends Controller
 
         $matieres = Matiere::where('archive', false)->orderBy('nom')->get();
         $salles   = Salle::where('centre_id', $centreId)->orderBy('nom')->get();
-        $options  = $annee
-            ? Option::where('centre_id', $centreId)->where('annee_scolaire_id', $annee->id)
-                    ->with('filiereOption', 'niveau')->get()
+        // Filtre de la page : seulement le centre courant
+        $profs    = User::where('role', 'ROLE_PROFESSEUR')->where('centre_id', $centreId)->orderBy('name')->get();
+        // Formulaire : tous les centres (séances inter-centres)
+        $toutesOptions = $annee
+            ? Option::where('annee_scolaire_id', $annee->id)
+                    ->with('filiereOption', 'niveau', 'centre')
+                    ->orderBy('centre_id')->orderBy('nom')->get()
             : collect();
-        $profs = User::where('role', 'ROLE_PROFESSEUR')->where('centre_id', $centreId)->orderBy('name')->get();
+        $tousProfs = User::where('role', 'ROLE_PROFESSEUR')
+            ->with('centre')->orderBy('name')->get();
 
         return view('seances.index', compact(
-            'seances', 'matieres', 'salles', 'options', 'profs',
+            'seances', 'matieres', 'salles', 'profs', 'toutesOptions', 'tousProfs',
             'centreId', 'centre', 'date', 'annee',
             'filtreActif', 'salleId', 'matiereId', 'profId', 'statut'
         ));
@@ -193,19 +198,22 @@ class SeanceController extends Controller
             return back()->withErrors(['professeur_id' => 'Un professeur est requis pour une séance HP.'])->withInput();
         }
 
-        // Règle HP avant TPE : hp_restant doit être 0 pour ce centre avant de créer un TPE
+        // Règle HP avant TPE : vérifier pour CHAQUE centre des groupes sélectionnés
         if ($data['type'] === 'TPE') {
-            $cid = $salle->centre_id;
-            $mca = MatiereCentreAnnee::where('matiere_id', $data['matiere_id'])
-                ->where('centre_id', $cid)
-                ->where('annee_scolaire_id', $annee?->id)
-                ->first();
-            $hpRestant = $mca?->hp_restant ?? Matiere::findOrFail($data['matiere_id'])->hp_initial;
-            if ($hpRestant > 0) {
-                return back()->withErrors(['type' =>
-                    "HP incomplets : {$hpRestant}h encore dues. "
-                    ."Toutes les séances HP doivent être terminées avant de créer des TPE."
-                ])->withInput();
+            $centresIds = Option::whereIn('id', $data['option_ids'])->pluck('centre_id')->unique();
+            foreach ($centresIds as $cid) {
+                $mca = MatiereCentreAnnee::where('matiere_id', $data['matiere_id'])
+                    ->where('centre_id', $cid)
+                    ->where('annee_scolaire_id', $annee?->id)
+                    ->first();
+                $hpRestant = $mca?->hp_restant ?? Matiere::findOrFail($data['matiere_id'])->hp_initial;
+                if ($hpRestant > 0) {
+                    $nomCentre = Centre::find($cid)?->nom ?? "Centre #{$cid}";
+                    return back()->withErrors(['type' =>
+                        "HP incomplets pour {$nomCentre} : {$hpRestant}h encore dues. "
+                        ."Toutes les séances HP doivent être terminées avant de créer des TPE."
+                    ])->withInput();
+                }
             }
         }
 
@@ -235,7 +243,7 @@ class SeanceController extends Controller
         $seance = Seance::create([
             'matiere_id'        => $data['matiere_id'],
             'salle_id'          => $salle->id,
-            'professeur_id'     => $data['professeur_id'],
+            'professeur_id'     => $data['professeur_id'] ?? null,
             'annee_scolaire_id' => $annee?->id,
             'debut'             => $debut,
             'fin'               => $fin,
@@ -257,6 +265,10 @@ class SeanceController extends Controller
 
     public function terminer(Seance $seance)
     {
+        if ($seance->statut === 'terminee') {
+            return back()->withErrors(['statut' => 'Séance déjà terminée.']);
+        }
+
         $seance->update(['statut' => 'terminee']);
 
         if ($seance->type === 'TPE' && !$seance->cloture_validee_at) {
@@ -341,7 +353,18 @@ class SeanceController extends Controller
             return back()->withErrors(['cloture' => 'Cette séance a déjà été clôturée.']);
         }
 
-        $data = $request->validate(['nb_presents' => 'required|integer|min:0']);
+        $rules = [
+            'nb_presents'        => 'required|integer|min:0',
+            'souhaite_contester' => 'nullable|boolean',
+        ];
+
+        // Si le professeur a coché la case de contestation, on ajoute les règles de validation
+        if ($request->boolean('souhaite_contester')) {
+            $rules['duree_contestee_minutes'] = 'required|integer|min:0';
+            $rules['motif']                   = 'required|string|min:10|max:1000';
+        }
+
+        $data = $request->validate($rules);
 
         $seance->update([
             'nb_presents_valide'  => $data['nb_presents'],
@@ -349,7 +372,23 @@ class SeanceController extends Controller
             'cloture_validee_par' => $user->id,
         ]);
 
-        return back()->with('succes', 'Clôture validée — ' . $data['nb_presents'] . ' présent(s) confirmé(s).');
-    }
+        if ($request->boolean('souhaite_contester')) {
+            ContestationHoraire::updateOrCreate(
+                ['seance_id' => $seance->id, 'professeur_id' => $user->id],
+                [
+                    'duree_calculee_minutes'  => $seance->calculerDureeEffective(),
+                    'duree_contestee_minutes' => $data['duree_contestee_minutes'],
+                    'motif'                   => $data['motif'],
+                    'statut'                  => 'en_attente',
+                ]
+            );
+        }
 
+        $msg = 'Clôture validée — ' . $data['nb_presents'] . ' présent(s) confirmé(s).';
+        if ($request->boolean('souhaite_contester')) {
+            $msg .= ' Votre contestation horaire a également été transmise.';
+        }
+
+        return back()->with('succes', $msg);
+    }
 }

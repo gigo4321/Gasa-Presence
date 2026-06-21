@@ -38,7 +38,7 @@
         </div>
         <div style="font-size:12px;color:#aaa;margin-bottom:12px;">{{ $opt->anneeScolaire?->libelle }}</div>
         <div class="d-flex gap-2">
-            <a href="{{ route('etudiants.index', ['centreId'=>$centreId,'annee_id'=>$opt->annee_scolaire_id]) }}"
+            <a href="{{ route('etudiants.index', ['centreId'=>$centreId,'annee_id'=>$opt->annee_scolaire_id,'option_id'=>$opt->id]) }}"
                class="btn btn-sm rounded-3 flex-1 text-white" style="background:var(--fonce);font-size:12px;">
                 Voir les étudiants
             </a>
@@ -89,7 +89,7 @@
 </div></div></div>
 @empty
 <div class="col-12"><div class="bg-white rounded-4 border p-5 text-center" style="color:#aaa;">
-    <div style="font-size:40px;margin-bottom:12px;">📋</div>
+    <i class="bi bi-people" style="font-size:40px;margin-bottom:12px;display:block;color:#ccc;"></i>
     <p>Aucun groupe pour cette année. Créez un groupe pour commencer à inscrire des étudiants.</p>
 </div></div>
 @endforelse

@@ -70,6 +70,9 @@
                 </div>
                 <div>
                     <div style="font-weight:600;font-size:13px;color:var(--fonce);">{{ $seance->professeur?->name }}</div>
+                    @if($seance->professeur?->grade)
+                    <div style="font-size:11px;color:var(--marron);font-style:italic;">{{ $seance->professeur->grade }}</div>
+                    @endif
                     <div style="font-size:11px;color:#aaa;">{{ $seance->professeur?->email }}</div>
                 </div>
             </div>
@@ -87,8 +90,19 @@
                     </div>
                 </div>
                 <div class="col-6">
-                    <div style="font-size:10px;color:var(--marron);">Fin séance</div>
-                    <div style="font-size:12px;font-weight:600;color:var(--fonce);">{{ $seance->fin->format('H:i') }}</div>
+                    <div style="font-size:10px;color:var(--marron);">Fin / Scan sortie</div>
+                    @if($seance->heure_scan_sortie_professeur)
+                    <div style="font-size:12px;font-weight:600;color:var(--fonce);">
+                        {{ $seance->heure_scan_sortie_professeur->format('H:i') }}
+                    </div>
+                    @elseif($seance->heure_scan_professeur)
+                    <div style="font-size:12px;font-weight:600;color:#2D4A6B;">
+                        {{ $seance->fin->format('H:i') }}
+                    </div>
+                    <div style="font-size:9px;color:#aaa;">fin planifiée</div>
+                    @else
+                    <div style="font-size:12px;font-weight:600;color:#aaa;">—</div>
+                    @endif
                 </div>
                 @if($fichePauseMin > 0)
                 <div class="col-6 mt-1">
@@ -146,12 +160,76 @@
 @if($estDerniereHP)
 <div class="rounded-4 p-3 mb-4 d-flex align-items-start gap-3"
      style="background:#F2E9D8;border:2px solid #D8C898;">
-    <span style="font-size:24px;">🏁</span>
+    <i class="bi bi-flag-fill" style="font-size:24px;color:#6B4E0A;"></i>
     <div>
         <div style="font-weight:700;color:#6B4E0A;font-size:14px;">Dernière séance HP de ce module</div>
         <div style="font-size:13px;color:#6B4E0A;">
             Cette séance clôture le quota HP de <strong>{{ $seance->matiere?->nom }}</strong> pour ce professeur.
         </div>
+    </div>
+</div>
+@endif
+
+{{-- ── NOTIFICATION VASES COMMUNICANTS ──────────────────────────────────── --}}
+@if(!$seance->heure_scan_professeur && $seance->statut === 'terminee' && $nbPresents > 0)
+@php
+    $heuresAbsence = (int) ceil($seance->duree_heures);
+    $tpeAvant      = $quota ? $quota->tpe_dynamique + $heuresAbsence : null;
+@endphp
+<div class="rounded-4 p-4 mb-4" style="background:#FFFBEB;border:2px solid #F59E0B;">
+    <div class="d-flex align-items-start gap-3 mb-3">
+        <div class="flex-shrink-0 rounded-circle d-flex align-items-center justify-content-center"
+             style="width:44px;height:44px;background:#FDE68A;">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size:20px;color:#92400E;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;color:#78350F;font-size:15px;">
+                Professeur absent — Vases communicants appliqués
+            </div>
+            <div style="font-size:13px;color:#92400E;margin-top:3px;">
+                {{ $seance->professeur?->name }} n'a pas badgé pour cette séance.
+                Les <strong>{{ $heuresAbsence }}h HP</strong> sont maintenues au quota (non déduites)
+                et une séance de rattrapage a été planifiée automatiquement.
+            </div>
+        </div>
+    </div>
+    <div class="row g-3">
+        {{-- Étudiants présents --}}
+        <div class="col-md-4">
+            <div class="p-3 rounded-3 text-center" style="background:#FEF3C7;border:1px solid #FDE68A;">
+                <div style="font-size:10px;color:#78350F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
+                    <i class="bi bi-people-fill me-1"></i>Étudiants présents
+                </div>
+                <div style="font-size:30px;font-weight:800;color:#92400E;">{{ $nbPresents }}</div>
+                <div style="font-size:11px;color:#A16207;">sur {{ $totalInscrits }} inscrit(s)</div>
+            </div>
+        </div>
+        {{-- HP restantes inchangées --}}
+        <div class="col-md-4">
+            <div class="p-3 rounded-3 text-center" style="background:#EBF0F5;border:1px solid #B5C5D8;">
+                <div style="font-size:10px;color:#2D4A6B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
+                    HP restantes
+                </div>
+                <div style="font-size:30px;font-weight:800;color:#2D4A6B;">{{ $profHpRestant }}h</div>
+                <div style="font-size:11px;color:#5A6E8A;">inchangées · rattrapage requis</div>
+            </div>
+        </div>
+        {{-- TPE déduit --}}
+        @if($quota && $tpeAvant !== null)
+        <div class="col-md-4">
+            <div class="p-3 rounded-3 text-center" style="background:#FEE2E2;border:1px solid #FECACA;">
+                <div style="font-size:10px;color:#991B1B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
+                    TPE déduit (−{{ $heuresAbsence }}h)
+                </div>
+                <div class="d-flex align-items-center justify-content-center gap-2">
+                    <span style="font-size:22px;font-weight:700;color:#6B7280;">{{ $tpeAvant }}h</span>
+                    <i class="bi bi-arrow-right" style="color:#EF4444;font-size:16px;"></i>
+                    <span style="font-size:30px;font-weight:800;color:#991B1B;">{{ $quota->tpe_dynamique }}h</span>
+                </div>
+                <div style="font-size:11px;color:#B91C1C;">sur {{ $tpeInitial }}h prévues</div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endif
@@ -168,6 +246,10 @@
                     <span style="font-size:12px;font-weight:700;color:#2D4A6B;text-transform:uppercase;letter-spacing:.04em;">Heures Professeur (HP)</span>
                     <span class="badge rounded-pill" style="background:#2D4A6B;font-size:11px;">{{ $hpInitial }}h prévues</span>
                 </div>
+                @php
+                    $nbAbsencesHP = $profSeancesTerminees->where('type','HP')
+                        ->filter(fn($s) => $s->heure_scan_professeur === null)->count();
+                @endphp
                 <div class="d-flex gap-4 mb-3">
                     <div>
                         <div style="font-size:22px;font-weight:800;color:#2D4A6B;">{{ $profHpFait }}h</div>
@@ -179,8 +261,14 @@
                     </div>
                     <div>
                         <div style="font-size:22px;font-weight:800;color:var(--fonce);">{{ $profNbSeances }}</div>
-                        <div style="font-size:11px;color:#888;">Séances HP</div>
+                        <div style="font-size:11px;color:#888;">Séances faites</div>
                     </div>
+                    @if($nbAbsencesHP > 0)
+                    <div>
+                        <div style="font-size:22px;font-weight:800;color:#92400E;">{{ $nbAbsencesHP }}</div>
+                        <div style="font-size:11px;color:#A16207;">Absence(s)</div>
+                    </div>
+                    @endif
                 </div>
                 <div class="progress rounded-pill" style="height:8px;">
                     <div class="progress-bar" role="progressbar"
@@ -238,22 +326,22 @@
 {{-- KPI présence --}}
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="stat-card"><span class="stat-icon">👥</span>
+        <div class="stat-card"><span class="stat-icon"><i class="bi bi-people-fill"></i></span>
             <div><div class="stat-value">{{ $totalInscrits }}</div><div class="stat-label">Inscrits</div></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="background:#EBF0EA;"><span class="stat-icon">✅</span>
+        <div class="stat-card" style="background:#EBF0EA;"><span class="stat-icon"><i class="bi bi-check-circle-fill"></i></span>
             <div><div class="stat-value">{{ $nbPresents }}</div><div class="stat-label">Présents</div></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="background:#F2EAEB;"><span class="stat-icon">❌</span>
+        <div class="stat-card" style="background:#F2EAEB;"><span class="stat-icon"><i class="bi bi-x-circle-fill"></i></span>
             <div><div class="stat-value">{{ $nbAbsents }}</div><div class="stat-label">Absents</div></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="background:#F3EAE7;"><span class="stat-icon">⚠️</span>
+        <div class="stat-card" style="background:#F3EAE7;"><span class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
             <div><div class="stat-value">{{ $nbInsuffisants }}</div><div class="stat-label">Présence insuffisante</div></div>
         </div>
     </div>
@@ -261,32 +349,121 @@
 
 {{-- ── PANNEAU VALIDATION PROFESSEUR ─────────────────────────────────────── --}}
 @php
-    $authUser       = Auth::user();
+    $authUser        = Auth::user();
     $estProfConcerne = $authUser->estProfesseur() && $authUser->id === $seance->professeur_id;
-    $peutValider    = ($estProfConcerne || $authUser->estAdmin()) && $seance->statut === 'terminee';
-    $dejaClose      = (bool) $seance->cloture_validee_at;
+    $peutValider     = ($estProfConcerne || $authUser->estAdmin()) && $seance->statut === 'terminee' && !$seance->cloture_validee_at;
+    $dejaClose       = (bool) $seance->cloture_validee_at;
+    $validateur      = $dejaClose ? \App\Models\User::find($seance->cloture_validee_par) : null;
 @endphp
 
-@if($peutValider)
+@if($seance->statut === 'terminee' && $seance->type === 'HP')
 <div class="mb-4">
 
     @if($dejaClose)
-    {{-- ── État : séance déjà clôturée ── --}}
-    <div class="rounded-4 p-4 d-flex align-items-start gap-3"
-         style="background:#EDF2EC;border:2px solid #A0BAA0;">
-        <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle"
-             style="width:44px;height:44px;background:#D4E3D3;font-size:20px;">✅</div>
-        <div>
-            <div style="font-weight:700;color:#2A4528;font-size:15px;">Clôture validée</div>
-            <div style="font-size:13px;color:#374151;margin-top:2px;">
-                Le {{ $seance->cloture_validee_at->format('d/m/Y à H:i') }}
-                &middot; <strong>{{ $seance->nb_presents_valide }}</strong> présent(s) confirmé(s) par le professeur
+    {{-- ── État : séance clôturée ── --}}
+    @php
+        $dm            = $dureeEffectiveMinutes;
+        $validePar     = $validateur;            // user qui a cliqué "valider"
+        $profDuCours   = $seance->professeur;    // prof assigné et ayant enseigné
+        $estValideAdmin = $validePar && (int)$validePar->id !== (int)$seance->professeur_id;
+    @endphp
+    <div class="rounded-4 p-4" style="background:#EDF2EC;border:2px solid #A0BAA0;">
+        {{-- Ligne d'en-tête --}}
+        <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle"
+                 style="width:44px;height:44px;background:#D4E3D3;font-size:20px;">
+                <i class="bi bi-check2-circle" style="color:#2A4528;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div style="font-weight:700;color:#2A4528;font-size:15px;">
+                    Clôture validée — {{ $profDuCours?->name }}
+                    @if($profDuCours?->grade)
+                    <span style="font-size:12px;font-weight:400;color:var(--marron);font-style:italic;">
+                        · {{ $profDuCours->grade }}
+                    </span>
+                    @endif
+                </div>
+                <div style="font-size:12px;color:#374151;margin-top:3px;">
+                    Le {{ $seance->cloture_validee_at->format('d/m/Y à H:i') }}
+                    &nbsp;·&nbsp;<strong>{{ $seance->nb_presents_valide }}</strong> présent(s) confirmé(s)
+                </div>
+                @if($estValideAdmin)
+                <div class="mt-1" style="font-size:11px;color:#6B4E0A;background:#FEF9C3;border-radius:4px;padding:2px 8px;display:inline-block;">
+                    <i class="bi bi-shield-fill me-1"></i>Validé par l'administrateur <strong>{{ $validePar->name }}</strong> à la place du professeur
+                </div>
+                @endif
             </div>
         </div>
+
+        {{-- Détails durée --}}
+        <div class="row g-2 mb-0">
+            <div class="col-auto">
+                <div class="px-3 py-2 rounded-3" style="background:#D4E3D3;font-size:12px;color:#2A4528;">
+                    <i class="bi bi-clock me-1"></i>Durée effective :
+                    <strong>{{ floor($dm/60) }}h{{ str_pad($dm%60,2,'0',STR_PAD_LEFT) }}</strong>
+                    @if($seance->heure_scan_professeur)
+                    <span style="color:#5A6E8A;margin-left:6px;">
+                        ({{ $seance->heure_scan_professeur->format('H:i') }}
+                        → {{ $seance->heure_scan_sortie_professeur?->format('H:i') ?? $seance->fin->format('H:i') }})
+                    </span>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- Contestation (si présente) --}}
+        @if($contestation)
+        @php
+            $statutContestColors = [
+                'en_attente' => ['#FEF9C3','#F59E0B','#78350F'],
+                'acceptee'   => ['#D4E3D3','#16a34a','#2A4528'],
+                'refusee'    => ['#FEE2E2','#dc2626','#991B1B'],
+            ];
+            $cc = $statutContestColors[$contestation->statut] ?? ['#f5f5f5','#888','#333'];
+            $dmCalc    = $contestation->duree_calculee_minutes;
+            $dmContest = $contestation->duree_contestee_minutes;
+        @endphp
+        <div class="mt-3 p-3 rounded-3" style="background:{{ $cc[0] }};border:1px solid {{ $cc[1] }};">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div style="font-weight:700;font-size:13px;color:{{ $cc[2] }};">
+                    <i class="bi bi-exclamation-circle-fill me-1"></i>Contestation horaire du professeur
+                </div>
+                <span class="badge rounded-pill px-3"
+                      style="font-size:11px;background:{{ $cc[1] }};color:#fff;">
+                    {{ match($contestation->statut) {
+                        'en_attente' => 'En attente',
+                        'acceptee'   => 'Acceptée',
+                        'refusee'    => 'Refusée',
+                        default      => $contestation->statut,
+                    } }}
+                </span>
+            </div>
+            <div class="d-flex gap-4 mb-2 flex-wrap">
+                <div>
+                    <div style="font-size:10px;color:{{ $cc[2] }};text-transform:uppercase;letter-spacing:.04em;">Durée calculée par le système</div>
+                    <div style="font-size:16px;font-weight:700;color:{{ $cc[2] }};">
+                        {{ floor($dmCalc/60) }}h{{ str_pad($dmCalc%60,2,'0',STR_PAD_LEFT) }}
+                    </div>
+                </div>
+                <div style="align-self:center;color:{{ $cc[1] }};font-size:18px;">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+                <div>
+                    <div style="font-size:10px;color:{{ $cc[2] }};text-transform:uppercase;letter-spacing:.04em;">Durée réclamée par le professeur</div>
+                    <div style="font-size:16px;font-weight:700;color:{{ $cc[2] }};">
+                        {{ floor($dmContest/60) }}h{{ str_pad($dmContest%60,2,'0',STR_PAD_LEFT) }}
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:{{ $cc[2] }};padding:8px 10px;background:rgba(255,255,255,.5);border-radius:4px;font-style:italic;">
+                « {{ $contestation->motif }} »
+            </div>
+        </div>
+        @endif
     </div>
 
-    @else
-    {{-- ── État : validation en attente ── --}}
+    @elseif($peutValider)
+    {{-- ── État : validation en attente — formulaire pour le professeur / admin ── --}}
     <div class="bg-white rounded-4 border p-4" style="border-color:#e5e7eb;">
         <h6 class="fw-bold mb-3" style="color:var(--fonce);font-size:14px;">
             <i class="bi bi-pencil-square me-2"></i>Validation requise &mdash; Action du professeur
@@ -310,7 +487,8 @@
                     <div style="font-size:11px;color:#2D4A6B;text-transform:uppercase;letter-spacing:.04em;">Durée calculée</div>
                     <div style="font-size:10px;color:#9ca3af;margin-top:2px;">
                         @if($seance->heure_scan_professeur)
-                            scan {{ $seance->heure_scan_professeur->format('H:i') }} → {{ $seance->fin->format('H:i') }}
+                            scan {{ $seance->heure_scan_professeur->format('H:i') }}
+                            → {{ $seance->heure_scan_sortie_professeur?->format('H:i') ?? $seance->fin->format('H:i') }}
                         @else
                             <span style="color:#6B2737;">aucun scan professeur</span>
                         @endif
@@ -327,39 +505,134 @@
         </div>
 
         <div class="p-4 rounded-3" style="background:#EDF2EC;border:2px solid #A0BAA0;">
-                    <div class="fw-bold mb-1" style="color:#3A5C38;font-size:14px;">
-                        <i class="bi bi-check2-circle me-2"></i>Valider la clôture
-                    </div>
-                    <p style="font-size:12px;color:#2A4528;margin-bottom:16px;">
-                        Saisissez le nombre d'étudiants réellement présents.
-                        Le comptage RFID ({{ $nbPresents }}) est pré-rempli — modifiez-le si nécessaire.
-                    </p>
-                    @error('cloture')
-                    <div class="alert alert-danger py-2 mb-2" style="font-size:12px;">{{ $message }}</div>
-                    @enderror
-                    <form action="{{ route('seances.cloturer', $seance->id) }}" method="POST">
-                        @csrf
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" style="font-size:12px;color:#3A5C38;">
-                                Nombre de présents <span style="color:red;">*</span>
-                            </label>
-                            <input type="number" name="nb_presents"
-                                   class="form-control form-control-lg text-center fw-bold"
-                                   value="{{ old('nb_presents', $nbPresents) }}"
-                                   min="0" max="{{ $totalInscrits }}" required
-                                   style="border-color:#A0BAA0;font-size:22px;">
-                        </div>
-                        <button type="submit" class="btn w-100 fw-bold py-2"
-                                style="background:#3A5C38;color:#fff;border-radius:10px;font-size:13px;">
-                            <i class="bi bi-check-lg me-2"></i>Valider et clôturer
-                        </button>
-                    </form>
+            <div class="fw-bold mb-1" style="color:#3A5C38;font-size:14px;">
+                <i class="bi bi-check2-circle me-2"></i>Valider la clôture
+            </div>
+            <p style="font-size:12px;color:#2A4528;margin-bottom:16px;">
+                Saisissez le nombre d'étudiants réellement présents.
+                Le comptage RFID ({{ $nbPresents }}) est pré-rempli — modifiez-le si nécessaire.
+            </p>
+            @error('cloture')
+            <div class="alert alert-danger py-2 mb-2" style="font-size:12px;">{{ $message }}</div>
+            @enderror
+            <form action="{{ route('seances.cloturer', $seance->id) }}" method="POST" id="formCloture">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:12px;color:#3A5C38;">
+                        Nombre de présents <span style="color:red;">*</span>
+                    </label>
+                    <input type="number" name="nb_presents"
+                           class="form-control form-control-lg text-center fw-bold"
+                           value="{{ old('nb_presents', $nbPresents) }}"
+                           min="0" max="{{ $totalInscrits }}" required
+                           style="border-color:#A0BAA0;font-size:22px;">
                 </div>
+
+                {{-- Option contestation --}}
+                <div class="mb-3 p-3 rounded-3" style="background:#F9F5F0;border:1px solid #DDD0C8;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="souhaite_contester"
+                               value="1" id="checkContest"
+                               {{ old('souhaite_contester') ? 'checked' : '' }}
+                               onchange="document.getElementById('contestFields').style.display=this.checked?'block':'none'">
+                        <label class="form-check-label fw-semibold" for="checkContest"
+                               style="font-size:12px;color:var(--marron);">
+                            Je souhaite contester la durée calculée
+                        </label>
+                        <div style="font-size:11px;color:#aaa;margin-top:2px;">
+                            La durée calculée est
+                            {{ floor($dureeEffectiveMinutes/60) }}h{{ str_pad($dureeEffectiveMinutes%60,2,'0',STR_PAD_LEFT) }}
+                            — cochez si elle ne reflète pas votre présence réelle.
+                        </div>
+                    </div>
+
+                    <div id="contestFields" style="display:{{ old('souhaite_contester') ? 'block' : 'none' }};margin-top:12px;">
+                        @error('motif')
+                        <div class="alert alert-danger py-1 mb-2" style="font-size:11px;">{{ $message }}</div>
+                        @enderror
+                        @error('duree_contestee_minutes')
+                        <div class="alert alert-danger py-1 mb-2" style="font-size:11px;">{{ $message }}</div>
+                        @enderror
+                        <div class="mb-2">
+                            <label class="form-label" style="font-size:12px;color:var(--marron);font-weight:600;">
+                                Durée réellement effectuée (en minutes) *
+                            </label>
+                            <input type="number" name="duree_contestee_minutes"
+                                   class="form-control rounded-3"
+                                   value="{{ old('duree_contestee_minutes', $dureeEffectiveMinutes) }}"
+                                   min="0" style="font-size:13px;">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" style="font-size:12px;color:var(--marron);font-weight:600;">
+                                Motif de la contestation * <span style="font-weight:400;color:#aaa;">(10 à 1000 caractères)</span>
+                            </label>
+                            <textarea name="motif" class="form-control rounded-3" rows="3"
+                                      style="font-size:12px;"
+                                      placeholder="Expliquez la raison de la contestation (ex : coupure de courant, arrivée tardive de l'outil de scan…)">{{ old('motif') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn w-100 fw-bold py-2"
+                        style="background:#3A5C38;color:#fff;border-radius:10px;font-size:13px;">
+                    <i class="bi bi-check-lg me-2"></i>Valider et clôturer
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @else
+    {{-- ── En attente de validation du professeur (vue responsable / autres) ── --}}
+    <div class="rounded-4 p-4 d-flex align-items-start gap-3"
+         style="background:#FFF8EC;border:2px solid #D8C898;">
+        <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle"
+             style="width:44px;height:44px;background:#F2E9D8;font-size:20px;"><i class="bi bi-hourglass-split"></i></div>
+        <div>
+            <div style="font-weight:700;color:#6B4E0A;font-size:14px;">En attente de validation du professeur</div>
+            <div style="font-size:13px;color:#8B6914;margin-top:2px;">
+                La séance est terminée. Le professeur {{ $seance->professeur?->name }} doit encore valider sa clôture depuis son compte.
+            </div>
+        </div>
     </div>
     @endif
 
 </div>
+
+{{-- ── SECTION SIGNATURE (toutes séances HP terminées) ──────────────────── --}}
+@if($seance->type === 'HP')
+<div class="bg-white rounded-4 border p-4 mb-4">
+    <h6 class="fw-bold mb-3" style="color:var(--fonce);font-size:13px;text-transform:uppercase;letter-spacing:.04em;">
+        <i class="bi bi-pen me-2"></i>Signatures
+    </h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="p-3 rounded-3 text-center" style="border:1px dashed {{ $dejaClose ? '#A0BAA0' : '#ccc' }};min-height:90px;background:{{ $dejaClose ? '#EDF2EC' : '#fafafa' }}">
+                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Signature du Professeur</div>
+                @if($dejaClose)
+                <div style="font-weight:700;font-size:13px;color:#2A4528;">{{ $seance->professeur?->name }}</div>
+                @if($seance->professeur?->grade)
+                <div style="font-size:11px;color:var(--marron);font-style:italic;">{{ $seance->professeur->grade }}</div>
+                @endif
+                <div style="font-size:11px;color:#4A7A48;margin-top:4px;">
+                    Validé le {{ $seance->cloture_validee_at->format('d/m/Y à H:i') }}
+                </div>
+                @else
+                <div style="color:#ccc;font-size:12px;margin-top:16px;">En attente de validation</div>
+                @endif
+            </div>
+        </div>
+        <div class="col-md-6">
+            @php $centreResp = $seance->salle?->centre; @endphp
+            <div class="p-3 rounded-3 text-center" style="border:1px dashed #ccc;min-height:90px;background:#fafafa;">
+                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Responsable de Centre</div>
+                <div style="color:#aaa;font-size:12px;margin-top:16px;">{{ $centreResp?->nom }}</div>
+            </div>
+        </div>
+    </div>
+</div>
 @endif
+
+@endif {{-- fin statut === terminee && type === HP --}}
 
 {{-- LISTE DES ÉTUDIANTS --}}
 <div class="bg-white rounded-4 border overflow-hidden">

@@ -169,8 +169,8 @@ async function scanner() {
     const badge   = document.getElementById('badgeInput').value.trim();
     const salleId = document.getElementById('salleSelect').value;
 
-    if (!badge)   { afficherResultat('orange', '⚠️', 'Saisir un badge', ''); return; }
-    if (!salleId) { afficherResultat('orange', '⚠️', 'Sélectionner une salle', ''); return; }
+    if (!badge)   { afficherResultat('orange', '!', 'Saisir un badge', ''); return; }
+    if (!salleId) { afficherResultat('orange', '!', 'Sélectionner une salle', ''); return; }
 
     try {
         const res  = await fetch(ROUTE_SCAN, {
@@ -180,7 +180,7 @@ async function scanner() {
         });
         const data = await res.json();
 
-        const iconMap  = { vert: '✅', rouge: '🚫', orange: '⚠️' };
+        const iconMap  = { vert: '✓', rouge: '✗', orange: '!' };
         const titreMap = { vert: 'ACCÈS AUTORISÉ', rouge: 'ACCÈS REFUSÉ', orange: 'ATTENTION' };
         const bgMap    = { vert: '#e8f5e9', rouge: '#ffebee', orange: '#fff8e1' };
 
@@ -190,7 +190,7 @@ async function scanner() {
         document.getElementById('badgeInput').value = '';
         setTimeout(() => document.getElementById('badgeInput').focus(), 100);
     } catch (err) {
-        afficherResultat('orange', '⚠️', 'Erreur réseau', err.message);
+        afficherResultat('orange', '!', 'Erreur réseau', err.message);
     }
 }
 
@@ -217,7 +217,7 @@ function renderHistorique() {
         return;
     }
     const bgMap = { vert: '#e8f5e9', rouge: '#ffebee', orange: '#fff8e1' };
-    const icMap = { vert: '✅', rouge: '🚫', orange: '⚠️' };
+    const icMap = { vert: '✓', rouge: '✗', orange: '!' };
     el.innerHTML = historique.map(h => `
         <div class="d-flex align-items-start gap-2 p-2 rounded-3 mb-1" style="background:${bgMap[h.couleur] || '#f5f5f5'}">
             <span>${icMap[h.couleur] || '•'}</span>
@@ -263,17 +263,47 @@ function renderSeance(s, panneau) {
     if (!s) {
         panneau.innerHTML = `
             <div class="d-flex align-items-center gap-3 rounded-3 p-3" style="background:#f0fdf4;border:1px solid #bbf7d0;">
-                <span style="font-size:28px;">🔓</span>
+                <i class="bi bi-unlock-fill" style="font-size:28px;color:#166534;"></i>
                 <div>
-                    <div style="font-weight:700;color:#166534;font-size:14px;">Aucune séance en cours</div>
-                    <div style="font-size:12px;color:#15803d;">Accès libre — tout étudiant actif du centre peut entrer.</div>
+                    <div style="font-weight:700;color:#166534;font-size:14px;">Aucune séance récente</div>
+                    <div style="font-size:12px;color:#15803d;">Pas de séance dans les 4 dernières heures pour cette salle.</div>
+                </div>
+            </div>`;
+        return;
+    }
+
+    // Séance terminée : panneau de consultation seulement
+    if (s.statut === 'terminee') {
+        const scanInfo = s.heure_scan_entree
+            ? `<div style="font-size:12px;color:#6b7280;margin-top:6px;">
+                  <i class="bi bi-clock me-1"></i>Scan entrée prof : <strong>${s.heure_scan_entree}</strong>
+                  &nbsp;·&nbsp; Dernier scan sortie : <strong>${s.heure_scan_sortie || '—'}</strong>
+               </div>`
+            : '';
+        panneau.innerHTML = `
+            <div class="rounded-3 p-3" style="background:#f3f4f6;border:1px solid #d1d5db;">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <span class="fw-bold" style="font-size:15px;color:#374151;">${s.matiere_code}</span>
+                        <span style="font-size:13px;color:#666;margin-left:6px;">${s.matiere_nom}</span>
+                    </div>
+                    <span class="badge rounded-pill" style="background:#6b7280;font-size:11px;">Terminée</span>
+                </div>
+                <div class="mt-2" style="font-size:12px;color:#555;">
+                    <i class="bi bi-clock me-1"></i>${s.debut} – ${s.fin}
+                    &nbsp;·&nbsp;<i class="bi bi-tag me-1"></i>${s.type}
+                    &nbsp;·&nbsp;<i class="bi bi-person me-1"></i>${s.professeur}
+                </div>
+                ${scanInfo}
+                <div class="mt-2 rounded-3 p-2" style="background:#fef3c7;border:1px solid #fde68a;font-size:12px;color:#92400e;">
+                    <i class="bi bi-clock me-1"></i>Séance terminée — scan de sortie professeur accepté jusqu'à 4h après la fin.
                 </div>
             </div>`;
         return;
     }
 
     const statutColor = { en_cours: '#16a34a', planifiee: '#d97706' };
-    const statutLabel = { en_cours: 'En cours', planifiee: 'À venir (< 30 min)' };
+    const statutLabel = { en_cours: 'En cours', planifiee: 'À venir (< 1h)' };
 
     const groupesPills = s.groupes.map(g =>
         `<span class="badge rounded-pill me-1" style="background:var(--marron);font-size:10px;">${g.nom}</span>`
@@ -281,7 +311,7 @@ function renderSeance(s, panneau) {
 
     const pauseHtml = s.pause_active ? `
         <div class="rounded-3 p-2 mt-2" style="background:#fff8e1;border:1px solid #fde68a;font-size:12px;">
-            ⚠️ <strong>Pause professeur</strong> — reprise à ${s.pause_fin}. Entrées bloquées jusqu'à la reprise.
+            <i class="bi bi-exclamation-triangle-fill me-1" style="color:#d97706;"></i><strong>Pause professeur</strong> — reprise à ${s.pause_fin}. Entrées bloquées jusqu'à la reprise.
         </div>` : '';
 
     panneau.innerHTML = `
@@ -311,12 +341,12 @@ function renderSeance(s, panneau) {
                     Contraintes actives
                 </div>
                 <div style="font-size:12px;display:flex;flex-direction:column;gap:5px;">
-                    <div>✅ Étudiant d'un groupe concerné → <strong>Accès autorisé</strong></div>
-                    <div>🚫 Étudiant d'un autre groupe → <strong>Accès refusé</strong></div>
-                    <div>🚫 Étudiant d'un autre centre → <strong>Accès refusé</strong></div>
-                    <div>🚫 Absent depuis &gt; 15 min (sortie temp.) → <strong>Réentrée refusée</strong></div>
-                    <div>⚠️ Sortie avec &gt; 10 min avant la fin → <strong>Sortie temporaire (15 min max)</strong></div>
-                    ${s.pause_active ? '<div>🔒 Pause en cours → <strong>Entrées bloquées</strong></div>' : ''}
+                    <div><i class="bi bi-check-circle-fill me-1" style="color:#16a34a;"></i>Étudiant d'un groupe concerné → <strong>Accès autorisé</strong></div>
+                    <div><i class="bi bi-x-circle-fill me-1" style="color:#dc2626;"></i>Étudiant d'un autre groupe → <strong>Accès refusé</strong></div>
+                    <div><i class="bi bi-x-circle-fill me-1" style="color:#dc2626;"></i>Étudiant d'un autre centre → <strong>Accès refusé</strong></div>
+                    <div><i class="bi bi-x-circle-fill me-1" style="color:#dc2626;"></i>Absent depuis &gt; 15 min (sortie temp.) → <strong>Réentrée refusée</strong></div>
+                    <div><i class="bi bi-exclamation-triangle-fill me-1" style="color:#d97706;"></i>Sortie avec &gt; 10 min avant la fin → <strong>Sortie temporaire (15 min max)</strong></div>
+                    ${s.pause_active ? '<div><i class="bi bi-lock-fill me-1" style="color:#6b7280;"></i>Pause en cours → <strong>Entrées bloquées</strong></div>' : ''}
                 </div>
             </div>
         </div>`;

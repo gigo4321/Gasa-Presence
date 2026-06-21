@@ -7,7 +7,7 @@
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="stat-card">
-            <span class="stat-icon">👨‍🏫</span>
+            <span class="stat-icon"><i class="bi bi-person-workspace"></i></span>
             <div>
                 <div class="stat-value">{{ $professeurs->count() }}</div>
                 <div class="stat-label">Professeurs rattachés</div>
@@ -16,7 +16,7 @@
     </div>
     <div class="col-md-4">
         <div class="stat-card" style="background:#e8f5e9;">
-            <span class="stat-icon">✅</span>
+            <span class="stat-icon"><i class="bi bi-check-circle-fill"></i></span>
             <div>
                 <div class="stat-value">{{ $professeurs->filter(fn($p) => $p->email_verified_at)->count() }}</div>
                 <div class="stat-label">Actifs</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="col-md-4">
         <div class="stat-card" style="background:#fff3e0;">
-            <span class="stat-icon">⏸</span>
+            <span class="stat-icon"><i class="bi bi-pause-circle"></i></span>
             <div>
                 <div class="stat-value">{{ $professeurs->filter(fn($p) => !$p->email_verified_at)->count() }}</div>
                 <div class="stat-label">Inactifs</div>
@@ -50,6 +50,7 @@
         <thead>
             <tr>
                 <th>Professeur</th>
+                <th>Grade</th>
                 <th>Téléphone</th>
                 <th>Badge UID</th>
                 <th>Matières enseignées</th>
@@ -74,6 +75,11 @@
                             <div style="font-size:11px;color:#aaa;">{{ $p->email }}</div>
                         </div>
                     </div>
+                </td>
+
+                {{-- Grade --}}
+                <td style="font-size:12px;color:var(--marron);">
+                    {{ $p->grade ?? '—' }}
                 </td>
 
                 {{-- Téléphone --}}
@@ -154,6 +160,11 @@
                                            class="form-control rounded-3" required>
                                 </div>
                                 <div class="col-md-6">
+                                    <label class="form-label fw-semibold" style="font-size:13px;">Grade / Titre</label>
+                                    <input type="text" name="grade" value="{{ $p->grade }}"
+                                           class="form-control rounded-3" placeholder="ex : Ingénieur, Docteur, Prof. Certifié">
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label fw-semibold" style="font-size:13px;">Email *</label>
                                     <input type="email" name="email" value="{{ $p->email }}"
                                            class="form-control rounded-3" required>
@@ -199,8 +210,8 @@
 
             @empty
             <tr>
-                <td colspan="6" class="text-center py-5" style="color:#aaa;">
-                    <div style="font-size:36px;margin-bottom:12px;">👨‍🏫</div>
+                <td colspan="7" class="text-center py-5" style="color:#aaa;">
+                    <i class="bi bi-person-workspace" style="font-size:36px;margin-bottom:12px;display:block;"></i>
                     Aucun professeur rattaché à ce centre.<br>
                     <small>Cliquez sur "Ajouter un professeur" pour commencer.</small>
                 </td>
@@ -233,6 +244,13 @@
                         <label class="form-label fw-semibold" style="font-size:13px;">Prénom *</label>
                         <input type="text" name="prenom" class="form-control rounded-3"
                                placeholder="Jean" required>
+                    </div>
+
+                    {{-- Grade --}}
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Grade / Titre</label>
+                        <input type="text" name="grade" class="form-control rounded-3"
+                               placeholder="ex : Ingénieur, Docteur, Maître-Assistant, Prof. Certifié">
                     </div>
 
                     {{-- Email --}}
