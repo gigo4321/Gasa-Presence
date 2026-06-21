@@ -1249,6 +1249,48 @@ class DatabaseSeeder extends Seeder
                 'updated_at'      => $now,
             ]);
 
+            // ══════════════════════════════════════════════════════════════════════
+            // === CONTESTATIONS HORAIRES ===
+            // ══════════════════════════════════════════════════════════════════════
+            //
+            // Gbégamey — HP1-RES (28/05, AKPONNA Marc-Aurèle) : EN ATTENTE
+            //   Le scanner a capté le badge à 08h02 (2 min de retard).
+            //   Le système calcule 178 min (08:02→11:00).
+            //   Le professeur affirme être arrivé à 07h45 pour installer son matériel
+            //   et avoir terminé à 11h20 — soit 215 min réels.
+            //   La contestation est en attente de vérification par le responsable.
+            //
+            // Akpakpa — HP2-BDD-AKP (14/05, GNIMAVO Basile) : ACCEPTÉE
+            //   Scan à 07h58. Système calcule 182 min (07:58→11:00).
+            //   Une coupure d'électricité à 09h30 (15 min) a prolongé la séance
+            //   jusqu'à 11h15. Le responsable de centre a confirmé l'incident.
+            //   Durée contestée et acceptée : 197 min (182 + 15 min de compensation).
+
+            DB::table('contestation_horaires')->insert([
+                // GBE — HP1-RES — statut : en_attente
+                [
+                    'seance_id'               => $seanceHP1RES,
+                    'professeur_id'           => $prof2,
+                    'duree_calculee_minutes'  => 178,   // 08:02 → 11:00, 0 pause
+                    'duree_contestee_minutes' => 215,   // 07:45 → 11:20 (setup + questions)
+                    'motif'                   => "Je suis arrivé à 07h45 pour installer le vidéoprojecteur et préparer les supports de cours, mais le scanner d'entrée n'a pas capté mon badge lors de ce passage. Il a finalement enregistré mon entrée à 08h02 quand j'ai re-passé le badge. Par ailleurs, j'ai prolongé la séance jusqu'à 11h20 pour répondre aux questions des étudiants sur le TP de réseaux. La durée réelle de ma prestation est donc de 3h35 (215 min) et non 2h58 (178 min) comme l'indique le système.",
+                    'statut'                  => 'en_attente',
+                    'created_at'              => $now,
+                    'updated_at'              => $now,
+                ],
+                // AKP — HP2-BDD-AKP — statut : acceptée
+                [
+                    'seance_id'               => $seanceHP2BDD_AKP,
+                    'professeur_id'           => $prof4,
+                    'duree_calculee_minutes'  => 182,   // 07:58 → 11:00, 0 pause
+                    'duree_contestee_minutes' => 197,   // 182 + 15 min de prolongation
+                    'motif'                   => "Une coupure d'électricité est survenue à 09h30 et a duré environ 15 minutes, immobilisant les étudiants et interrompant le cours. Avec l'accord du responsable de salle M. ZINSOU Fidèle, j'ai prolongé la séance jusqu'à 11h15 pour rattraper le temps perdu. Le système ne comptabilise que la durée de 07h58 à 11h00 (182 min) alors que la prestation effective a été de 11h15 (197 min). Je demande la prise en compte de ces 15 minutes supplémentaires.",
+                    'statut'                  => 'acceptee',
+                    'created_at'              => $now,
+                    'updated_at'              => $now,
+                ],
+            ]);
+
         });
 
         $this->command->info('GASA-ERP — Seed complet effectué avec succès !');
@@ -1292,6 +1334,9 @@ class DatabaseSeeder extends Seeder
                 ['13/06', 'HP',  'ELEC-GEER', 'AKPONNA', 'GBE', 'terminee', 'INTER: étudiants AKP→GBE, prof présent → hp_restant ELEC AKP 6→3'],
                 ['16/06', 'HP',  'ELEC-GEER', 'AKPONNA', 'GBE', 'terminee', 'INTER: étudiants AKP→GBE, PROF ABSENT (3 étudiants venus) → tpe_dyn 3→0'],
                 ['20/06', 'HP',  'BDD-SIL',   'DEGBOE',  'AKP', 'planifiee','INTER mixte: prof GBE→AKP, optSIL+optSIL_AKP ensemble'],
+                // Contestations horaires
+                ['28/05', 'HP',  'RES-SIL',   'AKPONNA', 'GBE', 'terminee', 'CONTESTATION en_attente — 178 min calculés vs 215 min réclamés'],
+                ['14/05', 'HP',  'BDD-SIL',   'GNIMAVO', 'AKP', 'terminee', 'CONTESTATION acceptée   — 182 min calculés vs 197 min (+15 min coupure électricité)'],
             ]
         );
     }
